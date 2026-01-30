@@ -7,6 +7,11 @@ public class MouseClickedSubscription<TMessage> implements Subscription<TMessage
     private final Function<MouseEvent, TMessage> message;
 
     @Override
+    public SubscriptionCategory category() {
+        return SubscriptionCategory.MouseClicked;
+    }
+
+    @Override
     public TMessage Trigger(Object argument)
     {
         var mouseEventArgs = (MouseEvent)argument;

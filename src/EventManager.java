@@ -6,7 +6,7 @@ public class EventManager<TMessage>
 {
     private EventManager() { }
 
-    private final HashMap<SubscriptionCategory, Set<Subscription<TMessage>>> activeSubscriptions = new HashMap<>();
+    public final HashMap<SubscriptionCategory, Set<Subscription<TMessage>>> activeSubscriptions = new HashMap<>();
 
     public Set<Subscription<TMessage>> activeOfCategory(SubscriptionCategory category)
     {

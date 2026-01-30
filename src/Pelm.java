@@ -4,49 +4,28 @@ import processing.event.MouseEvent;
 import java.util.*;
 import java.util.function.*;
 
-public class Pelm<TModel, TMessage> extends PApplet
+public abstract class Pelm<TModel, TMessage> extends PApplet
 {
-    private final Runnable settings;
-    private final Runnable setup;
-    private final EventManager<TMessage> eventManager;
-    private TModel model;
-    private final Consumer<TMessage> updateModel;
-    private final Consumer<TModel> view;
-    private final ArrayList<Runnable> subscriptions = new ArrayList<>();
+    protected final EventManager<TMessage> eventManager;
+    protected TModel model;
 
-    public Pelm(Runnable settings,
-                Runnable setup,
-                TModel initial,
-                BiFunction<TMessage, TModel, TModel> update,
-                Consumer<TModel> view,
-                Function<TModel, Subscription<TMessage>> subscriptions)
+    public Pelm()
     {
-        this.settings = settings;
-        this.setup = setup;
-        this.model = initial;
-        this.updateModel = msg -> {
-            this.model = update.apply(msg, this.model);
-        };
-        this.view = view;
-
         this.eventManager = EventManager.create();
     }
 
-    @Override
-    public void settings() {
-        this.settings.run();
-    }
+    protected abstract void view(TModel model);
+    protected abstract TModel update(TMessage message, TModel model);
 
-    @Override
-    public void setup()
+    public void updateModel(TMessage message)
     {
-        this.setup.run();
+        this.model = update(message, this.model);
     }
 
     @Override
     public void draw()
     {
-        this.view.accept(model);
+        this.view(model);
     }
 
     @Override
@@ -55,6 +34,6 @@ public class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseClicked)
-                .forEach(subscription -> this.updateModel.accept(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
     }
 }
