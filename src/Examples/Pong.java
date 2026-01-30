@@ -7,8 +7,10 @@ import Subscription.TimerSubscription;
 import processing.event.KeyEvent;
 import Subscription.FunctionSubscription;
 
+import java.util.EnumSet;
 import java.util.stream.Stream;
 
+import static Examples.Pong.Direction.toInt;
 import static java.awt.event.KeyEvent.*;
 
 public class Pong extends Pelm<Pong.Model, Pong.Message>
@@ -21,7 +23,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
     public Pong()
     {
-        this(new Model(0.5f, Direction.None, 0.5f, Direction.None));
+        this(new Model(0.5f, EnumSet.noneOf(Direction.class), 0.5f, EnumSet.noneOf(Direction.class)));
     }
 
     private Pong(Model model)
@@ -33,17 +35,19 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
     private final Subscription<Message> buttonPressedSubscription = FunctionSubscription.<KeyEvent, Message>create(SubscriptionCategory.KeyPressed, keyArgs ->
             switch (keyArgs.getKeyCode()) {
-                case VK_W -> new ChangeDirection(Player.Left, Direction.Up);
-                case VK_S -> new ChangeDirection(Player.Left, Direction.Down);
-                case VK_UP -> new ChangeDirection(Player.Right, Direction.Up);
-                case VK_DOWN -> new ChangeDirection(Player.Right, Direction.Down);
+                case VK_W -> new AddDirection(Player.Left, Direction.Up);
+                case VK_S -> new AddDirection(Player.Left, Direction.Down);
+                case VK_UP -> new AddDirection(Player.Right, Direction.Up);
+                case VK_DOWN -> new AddDirection(Player.Right, Direction.Down);
                 default -> new None();
             });
 
     private final Subscription<Message> buttonReleasedSubscription = FunctionSubscription.<KeyEvent, Message>create(SubscriptionCategory.KeyReleased, keyArgs ->
             switch (keyArgs.getKeyCode()) {
-                case VK_W, VK_S -> new ChangeDirection(Player.Left, Direction.None);
-                case VK_UP, VK_DOWN -> new ChangeDirection(Player.Right, Direction.None);
+                case VK_W -> new RemoveDirection(Player.Left, Direction.Up);
+                case VK_S -> new RemoveDirection(Player.Left, Direction.Down);
+                case VK_UP -> new RemoveDirection(Player.Right, Direction.Up);
+                case VK_DOWN -> new RemoveDirection(Player.Right, Direction.Down);
                 default -> new None();
             });
 
@@ -62,6 +66,8 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     protected void view(Model model)
     {
         background(0);
+
+
 
         // Draw left paddle
         rect(PaddleDisplacementFromEdge * displayWidth,
@@ -84,50 +90,66 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
         return switch (message)
         {
             case None _ -> model;
-            case ChangeDirection b -> switch (b.player())
+            case AddDirection b -> switch (b.player())
             {
                 case Left -> model.withLeftDirection(b.direction());
                 case Right -> model.withRightDirection(b.direction());
             };
-            case Interval _ -> new Model(model.leftPlayerPosition + model.leftPlayerDirection.toInt() * PaddleMoveSpeed,
+            case RemoveDirection b -> switch (b.player())
+            {
+                case Left -> model.withoutLeftDirection(b.direction());
+                case Right -> model.withoutRightDirection(b.direction());
+            };
+            case Interval _ -> new Model(model.leftPlayerPosition + toInt(model.leftPlayerDirection) * PaddleMoveSpeed,
                             model.leftPlayerDirection,
-                            model.rightPlayerPosition + model.rightPlayerDirection.toInt() * PaddleMoveSpeed,
+                            model.rightPlayerPosition + toInt(model.rightPlayerDirection) * PaddleMoveSpeed,
                             model.rightPlayerDirection);
         };
     }
 
-    public record Model(float leftPlayerPosition, Direction leftPlayerDirection, float rightPlayerPosition, Direction rightPlayerDirection)
+    public record Model(float leftPlayerPosition, EnumSet<Direction> leftPlayerDirection, float rightPlayerPosition, EnumSet<Direction> rightPlayerDirection)
     {
+        public Model withoutLeftDirection(Direction direction)
+        {
+            leftPlayerDirection.remove(direction);
+
+            return this;
+        }
+
+        public Model withoutRightDirection(Direction direction)
+        {
+            rightPlayerDirection.remove(direction);
+
+            return this;
+        }
+
         public Model withLeftDirection(Direction direction)
         {
-            return new Model(leftPlayerPosition, direction, rightPlayerPosition, rightPlayerDirection);
+            leftPlayerDirection.add(direction);
+
+            return this;
         }
 
         public Model withRightDirection(Direction direction)
         {
-            return new Model(leftPlayerPosition, leftPlayerDirection, rightPlayerPosition, direction);
+            rightPlayerDirection.add(direction);
+
+            return this;
         }
     }
 
-    public sealed interface Message permits Interval, ChangeDirection, None
-    {
-
-    }
+    public sealed interface Message permits Interval, AddDirection, RemoveDirection, None { }
 
     public enum Direction
     {
         Up,
-        Down,
-        None;
+        Down;
 
-        public int toInt()
+        public static int toInt(EnumSet<Direction> directions)
         {
-            return switch (this)
-            {
-                case Up -> -1;
-                case Down -> 1;
-                default -> 0;
-            };
+            return (directions.contains(Direction.Up) ? -1 : 0)
+                    +
+                    (directions.contains(Direction.Down) ? 1 : 0);
         }
     }
 
@@ -137,6 +159,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     }
 
     public record Interval() implements Message { }
-    public record ChangeDirection(Player player, Direction direction) implements Message { }
+    public record AddDirection(Player player, Direction direction) implements Message { }
+    public record RemoveDirection(Player player, Direction direction) implements Message { }
     public record None() implements Message { }
 }
