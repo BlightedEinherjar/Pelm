@@ -1,4 +1,5 @@
 import processing.core.PApplet;
+import processing.event.MouseEvent;
 
 public class Sketch extends PApplet
 {
@@ -14,6 +15,11 @@ public class Sketch extends PApplet
     @Override
     public void setup() {
         frameRate(60);
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent event) {
+        System.out.println("Mouse Moved " + event.getX() + " " + event.getY());
     }
 
     @Override
