@@ -52,11 +52,11 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     {
         final int m = millis();
 
-        eventManager.timerSubscriptions().forEach(subscription ->
+        eventManager.timerSubscriptions().toList().forEach(subscription ->
         {
             for (int i = 0; i < subscription.shouldTrigger(m); i++)
             {
-                subscription.Trigger(null);
+                this.updateModel(subscription.Trigger(null));
             }
         });
 

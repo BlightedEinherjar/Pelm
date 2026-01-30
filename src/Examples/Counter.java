@@ -27,7 +27,7 @@ public final class Counter extends Pelm<Integer, Counter.Msg>
 
     private final MouseClickedSubscription<Msg> mouseClickedSubscription = new MouseClickedSubscription<>(eventArgs ->
     {
-        if (eventArgs.isControlDown()) {
+        if (eventArgs.getButton() == RIGHT) {
             return Msg.Decrement;
         }
 
@@ -44,6 +44,7 @@ public final class Counter extends Pelm<Integer, Counter.Msg>
     protected void view(Integer integer)
     {
         background(0);
+        textSize(100);
         text(integer.toString(), mouseX, mouseY);
     }
 

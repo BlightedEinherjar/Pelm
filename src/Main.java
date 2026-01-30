@@ -9,5 +9,9 @@ public class Main
         var pelm = new Pong();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
+
+//        var pelm = new Counter(0);
+//
+//        PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
     }
 }
