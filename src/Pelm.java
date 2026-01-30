@@ -2,7 +2,6 @@ import processing.core.PApplet;
 import processing.event.MouseEvent;
 
 import java.util.*;
-import java.util.function.*;
 
 public abstract class Pelm<TModel, TMessage> extends PApplet
 {
@@ -22,9 +21,22 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this.model = update(message, this.model);
     }
 
+    public abstract ArrayList<Subscription<TMessage>> subscriptions(TModel model);
+
+    private void setCurrentSubscriptions(TModel model)
+    {
+        var currentSubscriptions = this.subscriptions(model);
+
+        eventManager.activeSubscriptions.values().forEach(Set::clear);
+
+        currentSubscriptions.forEach(subscription ->
+                this.eventManager.activeSubscriptions.get(subscription.category()).add(subscription));
+    }
+
     @Override
     public void draw()
     {
+        this.setCurrentSubscriptions(model);
         this.view(model);
     }
 

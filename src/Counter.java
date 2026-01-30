@@ -1,10 +1,5 @@
+import java.util.ArrayList;
 import java.util.HashSet;
-
-enum Msg
-{
-    Increment,
-    Decrement
-}
 
 public class Counter extends Pelm<Integer, Msg>
 {
@@ -12,17 +7,6 @@ public class Counter extends Pelm<Integer, Msg>
     {
         super();
         this.model = init;
-        var s = new HashSet<Subscription<Msg>>();
-        s.add(new MouseClickedSubscription<Msg>(eventArgs ->
-        {
-            if (eventArgs.isControlDown())
-            {
-                return Msg.Decrement;
-            }
-
-            return Msg.Increment;
-        }));
-        this.eventManager.activeSubscriptions.put(SubscriptionCategory.MouseClicked, s);
     }
 
     @Override
@@ -45,5 +29,23 @@ public class Counter extends Pelm<Integer, Msg>
             case Increment -> integer + 1;
             case Decrement -> integer - 1;
         };
+    }
+
+    private final MouseClickedSubscription<Msg> mouseClickedSubscription = new MouseClickedSubscription<>(eventArgs ->
+    {
+        if (eventArgs.isControlDown())
+        {
+            return Msg.Decrement;
+        }
+
+        return Msg.Increment;
+    });
+
+    @Override
+    public ArrayList<Subscription<Msg>> subscriptions(Integer integer)
+    {
+        var list = new ArrayList<Subscription<Msg>>();
+        list.add(mouseClickedSubscription);
+        return list;
     }
 }
