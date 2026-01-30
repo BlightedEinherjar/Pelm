@@ -94,7 +94,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                             model.rightPlayerPosition + model.rightPlayerDirection.toInt() * PaddleMoveSpeed,
                             model.rightPlayerDirection);
         };
-    }////
+    }/////
 
     public record Model(float leftPlayerPosition, Direction leftPlayerDirection, float rightPlayerPosition, Direction rightPlayerDirection)
     {
