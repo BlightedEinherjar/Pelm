@@ -26,7 +26,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
     private static Model.Paddle initPaddle()
     {
-        return new Model.Paddle(0.5f, EnumSet.noneOf(Direction.class));
+        return new Model.Paddle(0.5f, EnumSet.noneOf(Direction.class), 0);
     }
 
     private static Ball initBall()
@@ -219,7 +219,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             return this;
         }
 
-        public record Paddle(float position, EnumSet<Direction> direction)
+        public record Paddle(float position, EnumSet<Direction> direction, int score)
         {
             public Vec2 topLeftCorner(Player player)
             {
@@ -234,7 +234,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
             public Paddle updatePosition()
             {
-                return new Paddle(this.position + toInt(this.direction) * PaddleMoveSpeed, this.direction);
+                return new Paddle(Math.clamp(this.position + toInt(this.direction) * PaddleMoveSpeed, PaddleHeight / 2, 1f - PaddleHeight / 2), this.direction, score);
             }
         }
 
