@@ -7,6 +7,7 @@ import Subscription.TimerSubscription;
 import processing.event.KeyEvent;
 import Subscription.FunctionSubscription;
 
+import java.awt.*;
 import java.util.EnumSet;
 import java.util.stream.Stream;
 
@@ -20,6 +21,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     public static final float PaddleWidth = 0.03f;
     public static final float PaddleDisplacementFromEdge = 0.03f;
     public static final int IntervalPeriodMilliseconds = 10;
+    public static final float InitialBallSpeed = 0.0009f;
 
     private static Model.Paddle initPaddle()
     {
@@ -28,7 +30,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
     private static Ball initBall()
     {
-        return new Ball(new Vec2(0.5f, 0.5f), new Vec2(0.0003f, 0f));
+        return new Ball(new Vec2(0.5f, 0.5f), new Vec2(InitialBallSpeed, 0f), InitialBallSpeed);
     }
 
     public Pong()
@@ -127,13 +129,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                 case Left -> model.withoutLeftDirection(b.direction());
                 case Right -> model.withoutRightDirection(b.direction());
             };
-            case Interval _ -> model.movePaddles().moveBall();
-//                    new Model(model.leftPlayerPosition + toInt(model.leftPlayerDirection) * PaddleMoveSpeed,
-//                            model.leftPlayerDirection,
-//                            model.rightPlayerPosition + toInt(model.rightPlayerDirection) * PaddleMoveSpeed,
-//                            model.rightPlayerDirection,
-//                            model.ballPosition.add(model.ballVector),
-//                            model.ballVector);
+            case Interval _ -> model.movePaddles().moveBall().handlePaddleCollisions().handleWallCollisions();
         };
     }
 
@@ -159,16 +155,41 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                 && firstTopLeft.y + firstHeight > secondTopLeft.y;
     }
 
-    public record Ball(Vec2 position, Vec2 vector)
+    public record Ball(Vec2 position, Vec2 vector, float speed)
     {
         public Ball updatePosition()
         {
-            return new Ball(position.add(vector), vector);
+            return new Ball(position.add(vector), vector, speed);
         }
 
         public Vec2 topLeftCorner()
         {
             return new Vec2(position.x() - BallWidth / 2, position().y - BallHeight / 2);
+        }
+
+        private static final float MaximumBounceAngle = (float) (75.0 * Math.PI / 180.0);
+
+        public Ball handleCollisionWithPaddle(float paddleCentre)
+        {
+            var distance = (paddleCentre - position.y) / (PaddleHeight / 2);
+
+            var angle = distance * MaximumBounceAngle;
+
+            var newSpeed = speed + InitialBallSpeed / 3;
+
+            var sign = vector.x < 0 ? 1 : -1;
+
+            return new Ball(position, new Vec2(sign * newSpeed * cos(angle), -newSpeed * sin(angle)), newSpeed);
+        }
+
+        public Ball handleCollisionWithWall()
+        {
+            return new Ball(position, new Vec2(vector.x, -vector.y), speed);
+        }
+
+        public Vec2 bottomLeftCorner()
+        {
+            return new Vec2(position.x() - BallWidth / 2, position().y + BallHeight / 2);
         }
     }
 
@@ -178,6 +199,21 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             Ball ball
     )
     {
+        public Model handleWallCollisions()
+        {
+            if (ball.topLeftCorner().y >= 0.99f)
+            {
+                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithWall());
+            }
+
+            if (ball.bottomLeftCorner().y <= 0.01f)
+            {
+                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithWall());
+            }
+
+            return this;
+        }
+
         public record Paddle(float position, EnumSet<Direction> direction)
         {
             public Vec2 topLeftCorner(Player player)
@@ -197,14 +233,30 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             }
         }
 
-        public Model handlePaddleCollisions(int width, int height)
+        public Model handlePaddleCollisions()
         {
+            var ballCorner = ball.topLeftCorner();
+
             var leftPlayerCorner  = leftPlayer.topLeftCorner(Player.Left);
+
+            if (rectanglesIntersect(leftPlayerCorner, PaddleWidth, PaddleHeight, ballCorner, BallWidth, BallHeight))
+            {
+                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithPaddle(leftPlayer.position));
+
+//                return new Model(leftPlayer, rightPlayer, new Ball(ball.position, new Vec2(-ball.vector.x, ball.vector.y)));
+            }
+
             var rightPlayerCorner = rightPlayer.topLeftCorner(Player.Right);
 
-            if (rectanglesIntersect(leftPlayerCorner, PaddleWidth, PaddleHeight, rightPlayerCorner, PaddleWidth, PaddleHeight))
+            if (rectanglesIntersect(rightPlayerCorner, PaddleWidth, PaddleHeight, ballCorner, BallWidth, BallHeight))
             {
-                return this;
+//                var distance = (rightPlayer.position - ball.position.y) / (PaddleHeight / 2);
+//
+//                println(distance);
+
+                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithPaddle(rightPlayer.position));
+
+//                return new Model(leftPlayer, rightPlayer, new Ball(ball.position, new Vec2(-ball.vector.x, ball.vector.y)));
             }
 
             return this;
