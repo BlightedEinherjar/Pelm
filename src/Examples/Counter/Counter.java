@@ -1,4 +1,4 @@
-package Examples;
+package Examples.Counter;
 
 import Subscription.MouseClickedSubscription;
 import Core.Pelm;
