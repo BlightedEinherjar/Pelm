@@ -21,9 +21,19 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     public static final float PaddleDisplacementFromEdge = 0.03f;
     public static final int IntervalPeriodMilliseconds = 10;
 
+    private static Model.Paddle initPaddle()
+    {
+        return new Model.Paddle(0.5f, EnumSet.noneOf(Direction.class));
+    }
+
+    private static Ball initBall()
+    {
+        return new Ball(new Vec2(0.5f, 0.5f), new Vec2(0.0003f, 0f));
+    }
+
     public Pong()
     {
-        this(new Model(0.5f, EnumSet.noneOf(Direction.class), 0.5f, EnumSet.noneOf(Direction.class)));
+        this(new Model(initPaddle(), initPaddle(), initBall()));
     }
 
     private Pong(Model model)
@@ -43,7 +53,8 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             });
 
     private final Subscription<Message> buttonReleasedSubscription = FunctionSubscription.<KeyEvent, Message>create(SubscriptionCategory.KeyReleased, keyArgs ->
-            switch (keyArgs.getKeyCode()) {
+            switch (keyArgs.getKeyCode())
+            {
                 case VK_W -> new RemoveDirection(Player.Left, Direction.Up);
                 case VK_S -> new RemoveDirection(Player.Left, Direction.Down);
                 case VK_UP -> new RemoveDirection(Player.Right, Direction.Up);
@@ -67,20 +78,23 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     {
         background(0);
 
-
-
         // Draw left paddle
         rect(PaddleDisplacementFromEdge * displayWidth,
-                displayHeight * model.leftPlayerPosition - displayHeight * PaddleHeight / 2,
+                displayHeight * model.leftPlayer.position - displayHeight * PaddleHeight / 2,
                 PaddleWidth * displayWidth,
                 PaddleHeight * displayHeight);
 
         // Draw right paddle
         rect(displayWidth - PaddleDisplacementFromEdge * displayWidth,
-                displayHeight * model.rightPlayerPosition - displayHeight * PaddleHeight / 2,
+                displayHeight * model.rightPlayer.position - displayHeight * PaddleHeight / 2,
                 -PaddleWidth * displayWidth,
                 PaddleHeight * displayHeight);
+
+        // Draw ball
+        rect(model.ball.position.x() * displayWidth, model.ball.position().y * displayHeight, BallWidth * displayWidth, BallWidth * 16/9 * displayHeight);
     }
+
+    private static final float BallWidth = 0.01f;
 
     private static final float PaddleMoveSpeed = 0.003f;
 
@@ -100,39 +114,92 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                 case Left -> model.withoutLeftDirection(b.direction());
                 case Right -> model.withoutRightDirection(b.direction());
             };
-            case Interval _ -> new Model(model.leftPlayerPosition + toInt(model.leftPlayerDirection) * PaddleMoveSpeed,
-                            model.leftPlayerDirection,
-                            model.rightPlayerPosition + toInt(model.rightPlayerDirection) * PaddleMoveSpeed,
-                            model.rightPlayerDirection);
+            case Interval _ -> model.movePaddles().moveBall();
+//                    new Model(model.leftPlayerPosition + toInt(model.leftPlayerDirection) * PaddleMoveSpeed,
+//                            model.leftPlayerDirection,
+//                            model.rightPlayerPosition + toInt(model.rightPlayerDirection) * PaddleMoveSpeed,
+//                            model.rightPlayerDirection,
+//                            model.ballPosition.add(model.ballVector),
+//                            model.ballVector);
         };
     }
 
-    public record Model(float leftPlayerPosition, EnumSet<Direction> leftPlayerDirection, float rightPlayerPosition, EnumSet<Direction> rightPlayerDirection)
+    record Vec2(float x, float y)
     {
+        public Vec2 add(Vec2 vec)
+        {
+            return new Vec2(x + vec.x, y + vec.y);
+        }
+    }
+
+    private static boolean rectanglesIntersect(int firstLeft, int y1, int firstWidth, int firstHeight,
+                                               int secondLeft, int secondTop, int secondWidth, int secondHeight)
+    {
+        return firstLeft < secondLeft + secondWidth
+                && firstLeft + firstWidth > secondLeft
+                && y1 < secondTop + secondHeight
+                && y1 + firstHeight > secondTop;
+    }
+
+    public record Ball(Vec2 position, Vec2 vector)
+    {
+        public Ball updatePosition()
+        {
+            return new Ball(position.add(vector), vector);
+        }
+    }
+
+    public record Model(
+            Paddle leftPlayer,
+            Paddle rightPlayer,
+            Ball ball
+    )
+    {
+        public record Paddle(float position, EnumSet<Direction> direction)
+        {
+            public Paddle updatePosition()
+            {
+                return new Paddle(this.position + toInt(this.direction) * PaddleMoveSpeed, this.direction);
+            }
+        }
+
+        public Model movePaddles()
+        {
+            return new Model(
+                    this.leftPlayer.updatePosition(),
+                    this.rightPlayer.updatePosition(),
+                    this.ball);
+        }
+
+        public Model moveBall()
+        {
+            return new Model(this.leftPlayer, this.rightPlayer, this.ball.updatePosition());
+        }
+
         public Model withoutLeftDirection(Direction direction)
         {
-            leftPlayerDirection.remove(direction);
+            this.leftPlayer.direction.remove(direction);
 
             return this;
         }
 
         public Model withoutRightDirection(Direction direction)
         {
-            rightPlayerDirection.remove(direction);
+            rightPlayer.direction.remove(direction);
 
             return this;
         }
 
         public Model withLeftDirection(Direction direction)
         {
-            leftPlayerDirection.add(direction);
+            leftPlayer.direction.add(direction);
 
             return this;
         }
 
         public Model withRightDirection(Direction direction)
         {
-            rightPlayerDirection.add(direction);
+            rightPlayer.direction.add(direction);
 
             return this;
         }
