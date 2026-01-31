@@ -9,6 +9,7 @@ import Subscription.FunctionSubscription;
 
 import java.awt.*;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static Examples.Pong.Direction.toInt;
@@ -129,7 +130,11 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                 case Left -> model.withoutLeftDirection(b.direction());
                 case Right -> model.withoutRightDirection(b.direction());
             };
-            case Interval _ -> model.movePaddles().moveBall().handlePaddleCollisions().handleWallCollisions();
+            case Interval _ -> model
+                    .movePaddles()
+                    .moveBall()
+                    .handlePaddleCollisions()
+                    .handleWallCollisions();
         };
     }
 
@@ -233,7 +238,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             }
         }
 
-        public Model handlePaddleCollisions()
+        private Optional<Paddle> collidedWith()
         {
             var ballCorner = ball.topLeftCorner();
 
@@ -241,25 +246,28 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
 
             if (rectanglesIntersect(leftPlayerCorner, PaddleWidth, PaddleHeight, ballCorner, BallWidth, BallHeight))
             {
-                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithPaddle(leftPlayer.position));
-
-//                return new Model(leftPlayer, rightPlayer, new Ball(ball.position, new Vec2(-ball.vector.x, ball.vector.y)));
+                return Optional.of(leftPlayer);
             }
 
             var rightPlayerCorner = rightPlayer.topLeftCorner(Player.Right);
 
             if (rectanglesIntersect(rightPlayerCorner, PaddleWidth, PaddleHeight, ballCorner, BallWidth, BallHeight))
             {
-//                var distance = (rightPlayer.position - ball.position.y) / (PaddleHeight / 2);
-//
-//                println(distance);
-
-                return new Model(leftPlayer, rightPlayer, ball.handleCollisionWithPaddle(rightPlayer.position));
-
-//                return new Model(leftPlayer, rightPlayer, new Ball(ball.position, new Vec2(-ball.vector.x, ball.vector.y)));
+                return Optional.of(rightPlayer);
             }
 
-            return this;
+            return Optional.empty();
+        }
+
+        public Model handlePaddleCollisions()
+        {
+            return collidedWith()
+                    .map(player ->
+                            new Model(
+                                    leftPlayer,
+                                    rightPlayer,
+                                    ball.handleCollisionWithPaddle(player.position)))
+                    .orElse(this);
         }
 
         public Model movePaddles()
