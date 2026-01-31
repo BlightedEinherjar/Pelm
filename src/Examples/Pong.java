@@ -76,25 +76,38 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     @Override
     protected void view(Model model)
     {
-        background(0);
+        background(120);
 
         // Draw left paddle
-        rect(PaddleDisplacementFromEdge * displayWidth,
-                displayHeight * model.leftPlayer.position - displayHeight * PaddleHeight / 2,
-                PaddleWidth * displayWidth,
-                PaddleHeight * displayHeight);
+
+        //line(0f, (float) height / 2, width, (float) height / 2);
+        line(0f, 0.5f * height, width, 0.5f * height);
+
+        Vec2 leftPlayerCorner  = model.leftPlayer.topLeftCorner(Player.Left).toScreenSpace(width, height);
+        Vec2 rightPlayerCorner = model.rightPlayer.topLeftCorner(Player.Right).toScreenSpace(width, height);
+
+        rect(leftPlayerCorner.x,
+                leftPlayerCorner.y,
+                PaddleWidth * width,
+                PaddleHeight * height);
 
         // Draw right paddle
-        rect(displayWidth - PaddleDisplacementFromEdge * displayWidth,
-                displayHeight * model.rightPlayer.position - displayHeight * PaddleHeight / 2,
-                -PaddleWidth * displayWidth,
-                PaddleHeight * displayHeight);
+        rect(rightPlayerCorner.x,
+                rightPlayerCorner.y,
+                PaddleWidth * width,
+                PaddleHeight * height);
+
+        var ballCorner = model.ball.topLeftCorner().toScreenSpace(width, height);
 
         // Draw ball
-        rect(model.ball.position.x() * displayWidth, model.ball.position().y * displayHeight, BallWidth * displayWidth, BallWidth * 16/9 * displayHeight);
+        rect(ballCorner.x,
+                ballCorner.y,
+                BallWidth * width,
+                BallHeight * height);
     }
 
     private static final float BallWidth = 0.01f;
+    private static final float BallHeight = BallWidth * 16/9;
 
     private static final float PaddleMoveSpeed = 0.003f;
 
@@ -124,21 +137,26 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
         };
     }
 
-    record Vec2(float x, float y)
+    public record Vec2(float x, float y)
     {
         public Vec2 add(Vec2 vec)
         {
             return new Vec2(x + vec.x, y + vec.y);
         }
+
+        public Vec2 toScreenSpace(int width, int height)
+        {
+            return new Vec2(x * width, y * height);
+        }
     }
 
-    private static boolean rectanglesIntersect(int firstLeft, int y1, int firstWidth, int firstHeight,
-                                               int secondLeft, int secondTop, int secondWidth, int secondHeight)
+    private static boolean rectanglesIntersect(Vec2 firstTopLeft, float firstWidth, float firstHeight,
+                                               Vec2 secondTopLeft, float secondWidth, float secondHeight)
     {
-        return firstLeft < secondLeft + secondWidth
-                && firstLeft + firstWidth > secondLeft
-                && y1 < secondTop + secondHeight
-                && y1 + firstHeight > secondTop;
+        return firstTopLeft.x < secondTopLeft.x + secondWidth
+                && firstTopLeft.x + firstWidth > secondTopLeft.x
+                && firstTopLeft.y < secondTopLeft.y + secondHeight
+                && firstTopLeft.y + firstHeight > secondTopLeft.y;
     }
 
     public record Ball(Vec2 position, Vec2 vector)
@@ -146,6 +164,11 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
         public Ball updatePosition()
         {
             return new Ball(position.add(vector), vector);
+        }
+
+        public Vec2 topLeftCorner()
+        {
+            return new Vec2(position.x() - BallWidth / 2, position().y - BallHeight / 2);
         }
     }
 
@@ -157,10 +180,34 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     {
         public record Paddle(float position, EnumSet<Direction> direction)
         {
+            public Vec2 topLeftCorner(Player player)
+            {
+                return switch (player)
+                {
+                    case Left -> new Vec2(PaddleDisplacementFromEdge,
+                            position - PaddleHeight / 2);
+                    case Right -> new Vec2(1f - PaddleDisplacementFromEdge - PaddleWidth,
+                    position - PaddleHeight / 2);
+                };
+            }
+
             public Paddle updatePosition()
             {
                 return new Paddle(this.position + toInt(this.direction) * PaddleMoveSpeed, this.direction);
             }
+        }
+
+        public Model handlePaddleCollisions(int width, int height)
+        {
+            var leftPlayerCorner  = leftPlayer.topLeftCorner(Player.Left);
+            var rightPlayerCorner = rightPlayer.topLeftCorner(Player.Right);
+
+            if (rectanglesIntersect(leftPlayerCorner, PaddleWidth, PaddleHeight, rightPlayerCorner, PaddleWidth, PaddleHeight))
+            {
+                return this;
+            }
+
+            return this;
         }
 
         public Model movePaddles()
