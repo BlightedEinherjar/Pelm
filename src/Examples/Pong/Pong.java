@@ -1,18 +1,19 @@
-package Examples;
+package Examples.Pong;
 
 import Core.Pelm;
 import Core.Subscription;
 import Core.SubscriptionCategory;
 import Subscription.TimerSubscription;
+import processing.core.PFont;
 import processing.event.KeyEvent;
 import Subscription.FunctionSubscription;
 
-import java.awt.*;
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
-import static Examples.Pong.Direction.toInt;
+import static Examples.Pong.Pong.Direction.toInt;
 import static java.awt.event.KeyEvent.*;
 
 public class Pong extends Pelm<Pong.Model, Pong.Message>
@@ -22,7 +23,7 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     public static final float PaddleWidth = 0.03f;
     public static final float PaddleDisplacementFromEdge = 0.03f;
     public static final int IntervalPeriodMilliseconds = 10;
-    public static final float InitialBallSpeed = 0.0009f;
+    public static final float InitialBallSpeed = 0.0009f * 3;
 
     private static Model.Paddle initPaddle()
     {
@@ -77,6 +78,18 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
     }
 
     @Override
+    protected void onSetup() {
+        PFont font = createFont("PongFont\\pong-score.ttf", 128);
+
+        textFont(font);
+
+        textSize(100f);
+
+        // Looks funky with this
+        strokeWeight(10f);
+    }
+
+    @Override
     protected void view(Model model)
     {
         background(120);
@@ -107,6 +120,10 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                 ballCorner.y,
                 BallWidth * width,
                 BallHeight * height);
+
+        // Score!
+        text(model.leftPlayer.score, 0.4f * displayWidth, 0.2f * displayHeight);
+        text(model.rightPlayer.score, 0.6f * displayWidth, 0.2f * displayHeight);
     }
 
     private static final float BallWidth = 0.01f;
@@ -134,12 +151,18 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
                     .movePaddles()
                     .moveBall()
                     .handlePaddleCollisions()
-                    .handleWallCollisions();
+                    .handleWallCollisions()
+                    .handleScoring();
         };
     }
 
     public record Vec2(float x, float y)
     {
+        public static Vec2 angleVector(float angle)
+        {
+            return new Vec2(cos(angle), sin(angle));
+        }
+
         public Vec2 add(Vec2 vec)
         {
             return new Vec2(x + vec.x, y + vec.y);
@@ -148,6 +171,11 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
         public Vec2 toScreenSpace(int width, int height)
         {
             return new Vec2(x * width, y * height);
+        }
+
+        public Vec2 multiply(float scalar)
+        {
+            return new Vec2(x * scalar, y * scalar);
         }
     }
 
@@ -196,6 +224,15 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
         {
             return new Vec2(position.x() - BallWidth / 2, position().y + BallHeight / 2);
         }
+
+        public Ball resetAfterScore(Player scorer)
+        {
+            var scalar = scorer == Player.Right ? -1 : 1;
+
+            return new Ball(new Vec2(0.5f, 0.5f),
+                    Vec2.angleVector(ThreadLocalRandom.current().nextFloat(-MaximumBounceAngle, MaximumBounceAngle)).multiply(scalar * InitialBallSpeed),
+                    InitialBallSpeed);
+        }
     }
 
     public record Model(
@@ -219,6 +256,42 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             return this;
         }
 
+        public Model handleScoring()
+        {
+            if (ball.position.x + BallWidth / 2 <= 0.01f)
+            {
+                return scored(Player.Right);
+            }
+
+            if (ball.position.x - BallWidth / 2 >= 0.99f)
+            {
+                return scored(Player.Left);
+            }
+
+            return this;
+        }
+
+        private Model scored(Player player)
+        {
+            var leftRight = assignScore(player);
+
+            return new Model(leftRight.left.resetPosition(), leftRight.right.resetPosition(), ball.resetAfterScore(player));
+        }
+
+        private Pair<Paddle, Paddle> assignScore(Player player)
+        {
+            Paddle left, right;
+
+            if (player == Player.Left)
+            {
+                return new Pair<>(leftPlayer.giveScore(), rightPlayer);
+            }
+
+            return new Pair<>(leftPlayer, rightPlayer.giveScore());
+        }
+
+        public record Pair<T1, T2>(T1 left, T2 right) { }
+
         public record Paddle(float position, EnumSet<Direction> direction, int score)
         {
             public Vec2 topLeftCorner(Player player)
@@ -235,6 +308,16 @@ public class Pong extends Pelm<Pong.Model, Pong.Message>
             public Paddle updatePosition()
             {
                 return new Paddle(Math.clamp(this.position + toInt(this.direction) * PaddleMoveSpeed, PaddleHeight / 2, 1f - PaddleHeight / 2), this.direction, score);
+            }
+
+            public Paddle giveScore()
+            {
+                return new Paddle(position, direction, score + 1);
+            }
+
+            public Paddle resetPosition()
+            {
+                return new Paddle(0.5f, direction, score);
             }
         }
 

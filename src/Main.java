@@ -1,5 +1,4 @@
-import Examples.Counter;
-import Examples.Pong;
+import Examples.Pong.Pong;
 import processing.core.PApplet;
 
 public class Main
