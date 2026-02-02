@@ -1,11 +1,11 @@
-import Examples.Pong.Pong;
+import examples.pong.Pong;
 import processing.core.PApplet;
 
 public class Main
 {
-    public static void main(String[] args)
+    public static void main(final String[] args)
     {
-        var pelm = new Pong();
+        final var pelm = new Pong();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
 

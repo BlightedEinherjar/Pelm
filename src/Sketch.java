@@ -3,7 +3,7 @@ import processing.event.MouseEvent;
 
 public class Sketch extends PApplet
 {
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         PApplet.main(Sketch.class.getName());
     }
 
@@ -18,7 +18,7 @@ public class Sketch extends PApplet
     }
 
     @Override
-    public void mouseMoved(MouseEvent event) {
+    public void mouseMoved(final MouseEvent event) {
         System.out.println("Mouse Moved " + event.getX() + " " + event.getY());
     }
 
