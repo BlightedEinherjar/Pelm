@@ -23,17 +23,17 @@ public class TimerSubscription<TMessage> extends SupplierSubscription<TMessage>
         return SubscriptionCategory.Timer;
     }
 
+    // Calculates how many times (if any) it should trigger
     public int shouldTrigger(final int nowMilliseconds)
     {
         return Math.floorDiv(nowMilliseconds - (createdMilliseconds + periodMilliseconds * howManyTimesTriggered), periodMilliseconds);
     }
 
     @Override
-    public TMessage Trigger(final Object argument)
+    public TMessage trigger(final Object argument)
     {
-        // This should maybe even work out how many times it needs to trigger in case the period is very short.
         howManyTimesTriggered++;
 
-        return super.Trigger(argument);
+        return super.trigger(argument);
     }
 }

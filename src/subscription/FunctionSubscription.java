@@ -15,7 +15,7 @@ public abstract class FunctionSubscription<TArg, TMessage> implements Subscripti
     }
 
     @Override
-    public TMessage Trigger(final Object argument) {
+    public TMessage trigger(final Object argument) {
         //noinspection unchecked
         return this.function.apply((TArg) argument);
     }

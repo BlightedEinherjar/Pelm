@@ -55,7 +55,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         {
             for (int i = 0; i < subscription.shouldTrigger(m); i++)
             {
-                this.updateModel(subscription.Trigger(null));
+                this.updateModel(subscription.trigger(null));
             }
         });
 
@@ -70,7 +70,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseClicked)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -80,7 +80,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MousePressed)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -90,7 +90,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseReleased)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -100,7 +100,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseMoved)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -110,7 +110,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseDragged)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -120,7 +120,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.MouseWheel)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -130,7 +130,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.KeyPressed)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -140,7 +140,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.KeyReleased)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -150,7 +150,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.KeyTyped)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(event)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
 
     @Override
@@ -160,7 +160,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.FocusGained)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(null)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
 
     @Override
@@ -170,7 +170,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.FocusLost)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(null)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
 
     @Override
@@ -180,7 +180,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.WindowResized)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(null)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
 
     @Override
@@ -190,6 +190,6 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         this
                 .eventManager
                 .activeOfCategory(SubscriptionCategory.WindowMoved)
-                .forEach(subscription -> this.updateModel(subscription.Trigger(null)));
+                .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
 }

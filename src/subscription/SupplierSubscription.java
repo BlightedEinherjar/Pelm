@@ -14,7 +14,7 @@ public abstract class SupplierSubscription<TMessage> implements Subscription<TMe
     }
 
     @Override
-    public TMessage Trigger(final Object argument)
+    public TMessage trigger(final Object argument)
     {
         return supplier.get();
     }
