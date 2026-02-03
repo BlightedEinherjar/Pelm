@@ -48,7 +48,7 @@ public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, 
         final Stream<Archetype<TComponentType, TMessage>> archetypes = archetypeManager.queryArchetypes(type);
 
         // Good spot to parallelise!
-        archetypes.flatMap(a -> a.entities(componentRegistry)).forEach(system::perform);
+        system.perform(archetypes.flatMap(a -> a.entities(componentRegistry)));
     }
 
     public boolean isAlive(final EntityRecord<TComponentType, TMessage> entity)

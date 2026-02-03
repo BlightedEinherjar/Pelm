@@ -4,6 +4,7 @@ import entity_component_system.Entity;
 
 import java.util.EnumSet;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public record BasicSystem<TComponentType extends Enum<TComponentType>>(EnumSet<TComponentType> typeSet, Consumer<Entity<TComponentType>> entityConsumer) implements System<TComponentType>
 {
@@ -14,8 +15,8 @@ public record BasicSystem<TComponentType extends Enum<TComponentType>>(EnumSet<T
     }
 
     @Override
-    public void perform(final Entity<TComponentType> entity)
+    public void perform(final Stream<Entity<TComponentType>> entities)
     {
-        entityConsumer.accept(entity);
+        entities.forEach(entityConsumer);
     }
 }
