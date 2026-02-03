@@ -18,7 +18,7 @@ public interface System<TComponentType extends Enum<TComponentType>>
         return new BasicSystem<>(componentTypes, entityConsumer);
     }
 
-    static <TComponentType extends Enum<TComponentType>>System<TComponentType> create(final EnumSet<TComponentType> componentTypes, final StreamConsumer<Entity<TComponentType>> entitiesConsumer)
+    static <TComponentType extends Enum<TComponentType>>System<TComponentType> createStreamSystem(final EnumSet<TComponentType> componentTypes, final StreamConsumer<Entity<TComponentType>> entitiesConsumer)
     {
         return new StreamSystem<>(componentTypes, entitiesConsumer);
     }
