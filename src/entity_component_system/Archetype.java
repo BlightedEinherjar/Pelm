@@ -8,14 +8,14 @@ import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public record Archetype<TComponentType extends Enum<TComponentType>, TMessage>(
+public record Archetype<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>(
         EnumSet<TComponentType> componentTypes,
         EnumMap<TComponentType, ArrayList<Component<TComponentType>>> componentMap,
-        ArrayList<EntityRecord<TComponentType, TMessage>> entityRecords,
-        Map<EntityRecord<TComponentType, TMessage>, Integer> entityToRowMap
+        ArrayList<EntityRecord<TComponentType, TMessage, TMessageIdentifier>> entityRecords,
+        Map<EntityRecord<TComponentType, TMessage, TMessageIdentifier>, Integer> entityToRowMap
 )
 {
-    public void add(final EntityRecord<TComponentType, TMessage> entity, final Set<Component<TComponentType>> components)
+    public void add(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity, final Set<Component<TComponentType>> components)
     {
         components.forEach(component -> componentMap.get(component.componentType()).add(component));
 
@@ -24,7 +24,7 @@ public record Archetype<TComponentType extends Enum<TComponentType>, TMessage>(
         entityToRowMap.put(entity, entityRecords.size() - 1);
     }
 
-    private void deleteEntity(final EntityRecord<TComponentType, TMessage> entity)
+    private void deleteEntity(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity)
     {
         final var entityRow = entityToRowMap.get(entity);
 
@@ -45,7 +45,7 @@ public record Archetype<TComponentType extends Enum<TComponentType>, TMessage>(
         entityToRowMap.remove(entity);
     }
 
-    private void swapDrop(final EntityRecord<TComponentType, TMessage> entity,
+    private void swapDrop(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity,
                           final Collection<ArrayList<Component<TComponentType>>> values,
                           final Integer entityRow)
     {
@@ -56,7 +56,7 @@ public record Archetype<TComponentType extends Enum<TComponentType>, TMessage>(
             componentList.set(entityRow, component);
         });
 
-        final EntityRecord<TComponentType, TMessage> lastEntity = entityRecords.removeLast();
+        final EntityRecord<TComponentType, TMessage, TMessageIdentifier> lastEntity = entityRecords.removeLast();
 
         entityRecords.set(entityRow, lastEntity);
 
@@ -72,10 +72,10 @@ public record Archetype<TComponentType extends Enum<TComponentType>, TMessage>(
                 new InternalEntity<>(index, componentRegistry, this));
     }
 
-    private record InternalEntity<TComponentType extends Enum<TComponentType>, TMessage>(
+    private record InternalEntity<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>(
             int entityRow,
             ComponentRegistry<TComponentType> componentRegistry,
-            Archetype<TComponentType, TMessage> archetype
+            Archetype<TComponentType, TMessage, TMessageIdentifier> archetype
     ) implements Entity<TComponentType>
     {
         @Override

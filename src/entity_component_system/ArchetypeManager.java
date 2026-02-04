@@ -7,20 +7,20 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMessage>
+public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>
 {
-    private final EntityComponentSystem<TComponentType, TMessage> entityComponentSystem;
+    private final EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> entityComponentSystem;
     private final Class<TComponentType> componentTypeClass;
-    private final ArrayList<Archetype<TComponentType, TMessage>> archetypes = new ArrayList<>();
+    private final ArrayList<Archetype<TComponentType, TMessage, TMessageIdentifier>> archetypes = new ArrayList<>();
     private final ArrayList<EnumSet<TComponentType>> archetypeTypes = new ArrayList<>();
 
-    public ArchetypeManager(final EntityComponentSystem<TComponentType, TMessage> entityComponentSystem, final Class<TComponentType> componentTypeClass)
+    public ArchetypeManager(final EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> entityComponentSystem, final Class<TComponentType> componentTypeClass)
     {
         this.entityComponentSystem = entityComponentSystem;
         this.componentTypeClass = componentTypeClass;
     }
 
-    public Stream<Archetype<TComponentType, TMessage>> queryArchetypes(final EnumSet<TComponentType> type)
+    public Stream<Archetype<TComponentType, TMessage, TMessageIdentifier>> queryArchetypes(final EnumSet<TComponentType> type)
     {
         return IntStream
                 .range(0, archetypeTypes.size())
@@ -28,7 +28,7 @@ public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMess
                 .mapToObj(archetypes::get);
     }
 
-    private Archetype<TComponentType, TMessage> getOrAddMatchingArchetype(final EnumSet<TComponentType> type)
+    private Archetype<TComponentType, TMessage, TMessageIdentifier> getOrAddMatchingArchetype(final EnumSet<TComponentType> type)
     {
         return IntStream
                 .range(0, archetypeTypes.size())
@@ -38,7 +38,7 @@ public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMess
                 .orElseGet(() -> addArchetype(type));
     }
 
-    private Archetype<TComponentType, TMessage> addArchetype(final EnumSet<TComponentType> type)
+    private Archetype<TComponentType, TMessage, TMessageIdentifier> addArchetype(final EnumSet<TComponentType> type)
     {
         archetypeTypes.add(type);
 
@@ -49,7 +49,7 @@ public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMess
             componentMap.put(componentType, new ArrayList<>());
         }
 
-        final var archetype = new Archetype<TComponentType, TMessage>(type, componentMap, new ArrayList<>(), new HashMap<>());
+        final var archetype = new Archetype<TComponentType, TMessage, TMessageIdentifier>(type, componentMap, new ArrayList<>(), new HashMap<>());
         archetypes.add(archetype);
 
         return archetype;
@@ -57,7 +57,7 @@ public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMess
 
     public void addEntity(final Set<Component<TComponentType>> components)
     {
-        final EntityRecord<TComponentType, TMessage> blankEntity = entityComponentSystem.createBlankEntity();
+        final EntityRecord<TComponentType, TMessage, TMessageIdentifier> blankEntity = entityComponentSystem.createBlankEntity();
 
         final EnumSet<TComponentType> componentTypes = components
                 .stream()

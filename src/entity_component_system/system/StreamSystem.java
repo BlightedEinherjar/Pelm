@@ -1,30 +1,23 @@
 package entity_component_system.system;
 
 import entity_component_system.Entity;
+import entity_component_system.Message;
 
 import java.util.EnumSet;
 import java.util.stream.Stream;
 
-class StreamSystem<TComponentType extends Enum<TComponentType>> implements System<TComponentType>
-    {
-        private final EnumSet<TComponentType> componentTypes;
-        private final StreamConsumer<Entity<TComponentType>> entitiesConsumer;
+public record StreamSystem<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>(
+        EnumSet<TComponentType> componentTypes,
+       StreamMessageConsumer<Entity<TComponentType>, TMessage> entitiesConsumer)
+        implements System<TComponentType, TMessage, TMessageIdentifier> {
 
-        public StreamSystem(final EnumSet<TComponentType> componentTypes, final StreamConsumer<Entity<TComponentType>> entitiesConsumer)
-        {
-            this.componentTypes = componentTypes;
-            this.entitiesConsumer = entitiesConsumer;
-        }
-
-        @Override
-        public EnumSet<TComponentType> type()
-        {
-            return componentTypes;
-        }
-
-        @Override
-        public void perform(final Stream<Entity<TComponentType>> entity)
-        {
-            entitiesConsumer.accept(entity);
-        }
+    @Override
+    public EnumSet<TComponentType> type() {
+        return componentTypes;
     }
+
+    @Override
+    public void perform(final Stream<Entity<TComponentType>> entity, final TMessage message) {
+        entitiesConsumer.accept(entity, message);
+    }
+}

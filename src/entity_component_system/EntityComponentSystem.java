@@ -10,21 +10,22 @@ import utils.safe_queue.ArrayQueue;
 import utils.safe_queue.SafeQueue;
 
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
-public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, TMessage>
+public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>
 {
-    private final ArchetypeManager<TComponentType, TMessage> archetypeManager;
+    private final ArchetypeManager<TComponentType, TMessage, TMessageIdentifier> archetypeManager;
     private int nextEntityIndex = 0;
     private final BitSet livingEntities = new BitSet();
-    private final SafeQueue<EntityRecord<TComponentType, TMessage>> deadEntities = new ArrayQueue<>();
-    private final SystemManager<TComponentType, TMessage> systemManager;
+    private final SafeQueue<EntityRecord<TComponentType, TMessage, TMessageIdentifier>> deadEntities = new ArrayQueue<>();
+    private final SystemManager<TComponentType, TMessage, TMessageIdentifier> systemManager;
     private final ComponentRegistry<TComponentType> componentRegistry;
 
     // Delegate this!!!
-    public EntityComponentSystem<TComponentType, TMessage> registerSystem(final TMessage message, final System<TComponentType> system)
+    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> registerSystem(final TMessageIdentifier messageIdentifier, final System<TComponentType, TMessage, TMessageIdentifier> system)
     {
-        systemManager.register(message, system);
+        systemManager.register(messageIdentifier, system);
 
         return this;
     }
@@ -36,27 +37,40 @@ public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, 
         this.componentRegistry = new ComponentRegistry<>(componentTypeClass);
     }
 
-    public void update(final TMessage message)
+    public <TMessageLower extends TMessage> System<TComponentType, TMessage, TMessageIdentifier> createSystem(
+            final EnumSet<TComponentType> componentTypes,
+            final BiConsumer<Entity<TComponentType>, TMessageLower> entityConsumer)
     {
-        systemManager.query(message).forEach(this::runSystem);
+        return System.create(componentTypes, (e, m) ->
+        {
+            //noinspection unchecked
+            entityConsumer.accept(e, (TMessageLower) m);
+        });
     }
 
-    public void runSystem(final System<TComponentType> system)
+    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> update(final TMessage message)
+    {
+        systemManager.query(message).forEach(system -> runSystem(system, message));
+
+        return this;
+    }
+
+    public void runSystem(final System<TComponentType, TMessage, TMessageIdentifier> system, final TMessage message)
     {
         final var type = system.type();
 
-        final Stream<Archetype<TComponentType, TMessage>> archetypes = archetypeManager.queryArchetypes(type);
+        final Stream<Archetype<TComponentType, TMessage, TMessageIdentifier>> archetypes = archetypeManager.queryArchetypes(type);
 
         // Good spot to parallelise!
-        system.perform(archetypes.flatMap(a -> a.entities(componentRegistry)));
+        system.perform(archetypes.flatMap(a -> a.entities(componentRegistry)), message);
     }
 
-    public boolean isAlive(final EntityRecord<TComponentType, TMessage> entity)
+    public boolean isAlive(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity)
     {
         return livingEntities.get(entity.index());
     }
 
-    public EntityComponentSystem<TComponentType, TMessage> registerComponent(final TComponentType componentType, final Class<? extends Component<TComponentType>> componentClass)
+    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> registerComponent(final TComponentType componentType, final Class<? extends Component<TComponentType>> componentClass)
     {
         final Optional<RegistrationError> optional = componentRegistry.register(componentType, componentClass);
 
@@ -68,9 +82,9 @@ public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, 
         return this;
     }
 
-    public EntityRecord<TComponentType, TMessage> createBlankEntity()
+    public EntityRecord<TComponentType, TMessage, TMessageIdentifier> createBlankEntity()
     {
-        final EntityRecord<TComponentType, TMessage> entity = deadEntities.dequeue().map(EntityRecord::incrementVersion).orElseGet(this::generateNewEntity);
+        final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity = deadEntities.dequeue().map(EntityRecord::incrementVersion).orElseGet(this::generateNewEntity);
 
         livingEntities.set(entity.index());
 
@@ -78,24 +92,24 @@ public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, 
     }
 
     // Needs to alert relevant archetype!
-    public void killEntity(final EntityRecord<TComponentType, TMessage> entity)
+    public void killEntity(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity)
     {
         livingEntities.set(entity.index(), false);
 
         deadEntities.enqueue(entity);
     }
 
-    private EntityRecord<TComponentType, TMessage> generateNewEntity()
+    private EntityRecord<TComponentType, TMessage, TMessageIdentifier> generateNewEntity()
     {
         return new EntityRecord<>(nextEntityIndex++, 0);
     }
 
-    public EntityComponentSystem<TComponentType, TMessage> addEntity(final EntityData<TComponentType> entityData)
+    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> addEntity(final EntityData<TComponentType> entityData)
     {
         return addEntity(entityData.components());
     }
 
-    public EntityComponentSystem<TComponentType, TMessage> addEntity(final Set<Component<TComponentType>> components)
+    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> addEntity(final Set<Component<TComponentType>> components)
     {
         archetypeManager.addEntity(components);
 

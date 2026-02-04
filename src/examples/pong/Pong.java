@@ -9,8 +9,12 @@ import processing.core.PFont;
 
 import examples.pong.message.*;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.stream.Stream;
 
 import static examples.pong.model.Ball.*;
@@ -53,8 +57,9 @@ public class Pong extends Pelm<Model, Message>
     }
 
     @Override
-    protected void onSetup() {
-        final PFont font = createFont("PongFont\\pong-score.ttf", 128);
+    protected void onSetup()
+    {
+        final PFont font = createFont("PongFont/pong-score.ttf", 128);
 
         textFont(font);
 

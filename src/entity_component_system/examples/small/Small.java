@@ -4,6 +4,7 @@ import entity_component_system.EntityComponentSystem;
 import entity_component_system.component.Component;
 import entity_component_system.system.System;
 
+import java.time.LocalTime;
 import java.util.EnumSet;
 import java.util.Objects;
 
@@ -11,34 +12,45 @@ public class Small
 {
     public void doStuff()
     {
-        final var ecs = new EntityComponentSystem<ComponentType, Message>(ComponentType.class);
+        final var ecs = new EntityComponentSystem<ComponentType, Message, MessageIdentifier>(ComponentType.class);
 
-        ecs.registerSystem(Message.Update, System.create(EnumSet.of(ComponentType.Position), p ->
+        final var entityData = new EntityBuilder<ComponentType>().with(new Position(3, 4)).build();
+
+        ecs.registerSystem(MessageIdentifier.Update, ecs.<Update>createSystem(EnumSet.of(ComponentType.Position), (p, msg) ->
         {
             final Position position = p.get(Position.class);
 
             java.lang.System.out.println("Hello, World!");
             java.lang.System.out.println(position);
 
-            position.x++;
-            position.y--;
-        }));
+            position.x = position.x + 1.0f / msg.deltaMilliseconds();
+            position.y = position.y - 1.0f / msg.deltaMilliseconds();
+        }))
+                .registerComponent(ComponentType.Position, Position.class)
+                .addEntity(entityData);
 
-        ecs.registerComponent(ComponentType.Position, Position.class);
+        long current = (java.lang.System.currentTimeMillis());
+        for (int i = 0; i < 100; i++)
+        {
+            try {
+                Thread.sleep((long) (Math.random() * 100));
+            } catch (final InterruptedException e) {
+                throw new RuntimeException(e);
+            }
 
-        final var entityData = new EntityBuilder<ComponentType>().with(new Position(3, 4)).build();
+            final long newTime = (java.lang.System.currentTimeMillis());
 
-        ecs.addEntity(entityData);
+            ecs.update(Message.update(newTime - current));
 
-        ecs.update(Message.Update);
-        ecs.update(Message.Update);
+            current = newTime;
+        }
     }
 }
 
 final class Position implements Component<ComponentType>
 {
-    public int x;
-    public int y;
+    public float x;
+    public float y;
 
     Position(final int x, final int y)
     {
@@ -52,12 +64,12 @@ final class Position implements Component<ComponentType>
         return ComponentType.Position;
     }
 
-    public int x()
+    public float x()
     {
         return x;
     }
 
-    public int y()
+    public float y()
     {
         return y;
     }
@@ -94,7 +106,24 @@ enum ComponentType
     Velocity
 }
 
-enum Message
+enum MessageIdentifier
 {
     Update
+}
+
+sealed interface Message extends entity_component_system.Message<MessageIdentifier> permits Update
+{
+    @Override
+    default MessageIdentifier messageIdentifier() {
+        return MessageIdentifier.Update;
+    }
+
+    static Message update(final long delta)
+    {
+        return new Update(delta);
+    }
+}
+
+record Update(long deltaMilliseconds) implements Message {
+
 }
