@@ -57,6 +57,7 @@ public class ArchetypeManager<TComponentType extends Enum<TComponentType>, TMess
 
     public void addEntity(final Set<Component<TComponentType>> components)
     {
+        // Should maybe refactor this to prevent the cyclical dependency. Not too important for now though.
         final EntityRecord<TComponentType, TMessage, TMessageIdentifier> blankEntity = entityComponentSystem.createBlankEntity();
 
         final EnumSet<TComponentType> componentTypes = components

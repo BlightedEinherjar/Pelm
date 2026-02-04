@@ -104,6 +104,7 @@ public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, 
         return new EntityRecord<>(nextEntityIndex++, 0);
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> addEntity(final EntityData<TComponentType> entityData)
     {
         return addEntity(entityData.components());

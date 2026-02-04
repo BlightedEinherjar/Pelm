@@ -29,7 +29,7 @@ public class Small
                 .registerComponent(ComponentType.Position, Position.class)
                 .addEntity(entityData);
 
-        long current = (java.lang.System.currentTimeMillis());
+        long current = java.lang.System.currentTimeMillis();
         for (int i = 0; i < 100; i++)
         {
             try
