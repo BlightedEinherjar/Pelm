@@ -32,7 +32,8 @@ public class Small
         long current = (java.lang.System.currentTimeMillis());
         for (int i = 0; i < 100; i++)
         {
-            try {
+            try
+            {
                 Thread.sleep((long) (Math.random() * 100));
             } catch (final InterruptedException e) {
                 throw new RuntimeException(e);
