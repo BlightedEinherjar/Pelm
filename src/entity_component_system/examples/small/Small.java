@@ -65,16 +65,6 @@ final class Position implements Component<ComponentType>
         return ComponentType.Position;
     }
 
-    public float x()
-    {
-        return x;
-    }
-
-    public float y()
-    {
-        return y;
-    }
-
     @Override
     public boolean equals(final Object obj)
     {
