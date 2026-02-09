@@ -3,9 +3,10 @@ package entity_component_system.query;
 import java.util.stream.Stream;
 
 // If you need more than 16 separate components, just cry.
-public final class Queries
+// Have an OR in the queries???? Dependent types would be so useful here. Either this or enums everywhere.
+public enum Queries
 {
-    private Queries() {}
+    ;
 
     public static <A> Query1Specification<A> query(final Class<A> type)
     {
@@ -97,6 +98,12 @@ public final class Queries
         public final Class<A> a;
 
         public Query1Specification(final Class<A> a) { this.a = a; }
+
+        // NO. Not sure how to have them conform to interface.
+        public <B> Query2Specification<A, B> or(final Class<B> type1, final Class<B> type2)
+        {
+
+        }
 
         public Query1Specification<A> with(final Class<?> with)
         {
