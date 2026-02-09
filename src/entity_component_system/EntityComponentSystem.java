@@ -1,121 +1,136 @@
 package entity_component_system;
 
-import entity_component_system.component.Component;
-import entity_component_system.component.ComponentRegistry;
-import entity_component_system.component.RegistrationError;
-import entity_component_system.examples.small.EntityData;
-import entity_component_system.system.System;
-import entity_component_system.system.SystemManager;
-import utils.safe_queue.ArrayQueue;
-import utils.safe_queue.SafeQueue;
+import entity_component_system.archetype.ArchetypeManager;
+import entity_component_system.entity.Entity;
+import entity_component_system.entity.Location;
+import entity_component_system.query.*;
+import entity_component_system.row.Row2;
+import entity_component_system.utils.TriConsumer;
+import entity_component_system.utils.safe_queue.ArrayQueue;
+import entity_component_system.utils.safe_queue.SafeQueue;
+import processing.core.PApplet;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 
-public class EntityComponentSystem<TComponentType extends Enum<TComponentType>, TMessage extends Message<TMessageIdentifier>, TMessageIdentifier>
+public class EntityComponentSystem
 {
-    private final ArchetypeManager<TComponentType, TMessage, TMessageIdentifier> archetypeManager;
-    private int nextEntityIndex = 0;
-    private final BitSet livingEntities = new BitSet();
-    private final SafeQueue<EntityRecord<TComponentType, TMessage, TMessageIdentifier>> deadEntities = new ArrayQueue<>();
-    private final SystemManager<TComponentType, TMessage, TMessageIdentifier> systemManager;
-    private final ComponentRegistry<TComponentType> componentRegistry;
+    final SafeQueue<Integer> freeIds = new ArrayQueue<>();
+    public final ArchetypeManager archetypeManager = new ArchetypeManager(this);
+    public final List<Location> entityLocations = new ArrayList<>();
+    final List<Location> despawnBuffer = new ArrayList<>();
+    public final List<Object[]> spawnBuffer = new ArrayList<>();
+    final SystemManager systemManager;
+    final Commands commands = new Commands(this);
 
-    // Delegate this!!!
-    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> registerSystem(final TMessageIdentifier messageIdentifier, final System<TComponentType, TMessage, TMessageIdentifier> system)
+    public EntityComponentSystem()
     {
-        systemManager.register(messageIdentifier, system);
-
-        return this;
-    }
-
-    public EntityComponentSystem(final Class<TComponentType> componentTypeClass)
-    {
-        this.archetypeManager = new ArchetypeManager<>(this, componentTypeClass);
-        this.systemManager = new SystemManager<>(this);
-        this.componentRegistry = new ComponentRegistry<>(componentTypeClass);
-    }
-
-    public <TMessageLower extends TMessage> System<TComponentType, TMessage, TMessageIdentifier> createSystem(
-            final EnumSet<TComponentType> componentTypes,
-            final BiConsumer<Entity<TComponentType>, TMessageLower> entityConsumer)
-    {
-        return System.create(componentTypes, (e, m) ->
-        {
-            //noinspection unchecked
-            entityConsumer.accept(e, (TMessageLower) m);
-        });
-    }
-
-    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> update(final TMessage message)
-    {
-        systemManager.query(message).forEach(system -> runSystem(system, message));
-
-        return this;
-    }
-
-    public void runSystem(final System<TComponentType, TMessage, TMessageIdentifier> system, final TMessage message)
-    {
-        final var type = system.type();
-
-        final Stream<Archetype<TComponentType, TMessage, TMessageIdentifier>> archetypes = archetypeManager.queryArchetypes(type);
-
-        // Good spot to parallelise!
-        system.perform(archetypes.flatMap(a -> a.entities(componentRegistry)), message);
-    }
-
-    public boolean isAlive(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity)
-    {
-        return livingEntities.get(entity.index());
-    }
-
-    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> registerComponent(final TComponentType componentType, final Class<? extends Component<TComponentType>> componentClass)
-    {
-        final Optional<RegistrationError> optional = componentRegistry.register(componentType, componentClass);
-
-        if (optional.isPresent())
-        {
-            throw new RuntimeException(optional.get().message());
-        }
-
-        return this;
-    }
-
-    public EntityRecord<TComponentType, TMessage, TMessageIdentifier> createBlankEntity()
-    {
-        final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity = deadEntities.dequeue().map(EntityRecord::incrementVersion).orElseGet(this::generateNewEntity);
-
-        livingEntities.set(entity.index());
-
-        return entity;
-    }
-
-    // Needs to alert relevant archetype!
-    public void killEntity(final EntityRecord<TComponentType, TMessage, TMessageIdentifier> entity)
-    {
-        livingEntities.set(entity.index(), false);
-
-        deadEntities.enqueue(entity);
-    }
-
-    private EntityRecord<TComponentType, TMessage, TMessageIdentifier> generateNewEntity()
-    {
-        return new EntityRecord<>(nextEntityIndex++, 0);
+        this.systemManager = new SystemManager(this, commands);
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> addEntity(final EntityData<TComponentType> entityData)
+    public <TMessage, A> EntityComponentSystem registerSystem(final Class<TMessage> messageClass, final TriConsumer<TMessage, Commands, Query1<A>> system, final Queries.Query1Specification<A> querySpecification)
     {
-        return addEntity(entityData.components());
-    }
-
-    public EntityComponentSystem<TComponentType, TMessage, TMessageIdentifier> addEntity(final Set<Component<TComponentType>> components)
-    {
-        archetypeManager.addEntity(components);
+        this.systemManager.registerSystem1(messageClass, system, querySpecification);
 
         return this;
     }
 
-    // Bitset per component indicating whether or not it is present combined with array list of all actual components. Scratch that, not bitset as needs to point. Integer list probably.
+    public <TMessage, A, B> EntityComponentSystem registerSystem(final Class<TMessage> messageClass, final TriConsumer<TMessage, Commands, Query2<A, B>> system, final Queries.Query2Specification<A, B> querySpecification)
+    {
+        this.systemManager.registerSystem2(messageClass, system, querySpecification);
+
+        return this;
+    }
+
+    public <TMessage, A, B, C> EntityComponentSystem registerSystem(final Class<TMessage> messageClass, final TriConsumer<TMessage, Commands, Query3<A, B, C>> system, final Queries.Query3Specification<A, B, C> querySpecification)
+    {
+        this.systemManager.registerSystem3(messageClass, system, querySpecification);
+
+        return this;
+    }
+
+    public <TMessage> EntityComponentSystem registerEmptySystem(final Class<TMessage> messageClass, final BiConsumer<TMessage, Commands> system)
+    {
+        this.systemManager.registerEmptySystem(messageClass, system);
+
+        return this;
+    }
+
+    public <TMessage> EntityComponentSystem update(final TMessage message)
+    {
+        this.systemManager.trigger(message);
+
+        return this;
+    }
+
+    // Maybe switch this from variadic to just tonnes of implementations. Not really any reason to but Object is ugly.
+    public Entity spawn(final Object ... components)
+    {
+        final var deq = freeIds.dequeue();
+
+        if (deq.isPresent())
+        {
+            final int entityId = deq.get();
+
+            final Location location = entityLocations.get(entityId);
+
+            location.entityGeneration++;
+
+            location.alive = true;
+
+            final Row2<Integer, Integer> archetypeIdAndEntityIndex = archetypeManager.spawn(entityId, components);
+
+            final int archetypeId = archetypeIdAndEntityIndex.a();
+            final int entityIndex = archetypeIdAndEntityIndex.b();
+
+            location.archetypeId = archetypeId;
+
+            location.entityIndex = entityIndex;
+
+            return new Entity(entityId);
+        }
+
+        final int entityId = entityLocations.size();
+
+        final Row2<Integer, Integer> archetypeIdAndEntityIndex = archetypeManager.spawn(entityId, components);
+
+        final int archetypeId = archetypeIdAndEntityIndex.a();
+        final int entityIndex = archetypeIdAndEntityIndex.b();
+
+        entityLocations.add(new Location(archetypeId, entityIndex, 0, true));
+
+        return new Entity(entityId);
+    }
+
+    public void markForDeath(final Entity entity)
+    {
+        this.despawnBuffer.add(this.entityLocations.get(entity.id()));
+    }
+
+    public void flushSpawn()
+    {
+        this.spawnBuffer.forEach(this::spawn);
+
+        this.spawnBuffer.clear();
+    }
+
+    public void flushDespawn()
+    {
+        despawnBuffer.forEach(location ->
+        {
+            location.alive = false;
+
+            archetypeManager.archetypes.get(location.archetypeId).deleteAt(location.entityIndex);
+        });
+
+        despawnBuffer.clear();
+    }
+
+    public <A> Query1<A> query(final Queries.Query1Specification<A> specification)
+    {
+        return new Query1<>(this, specification);
+    }
 }
+
