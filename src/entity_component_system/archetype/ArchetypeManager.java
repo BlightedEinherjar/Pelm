@@ -25,6 +25,8 @@ public class ArchetypeManager
         this.ecs = ecs;
     }
 
+    // Maybe say you have to register components then if not found, check for parents.
+
     public int componentId(final Class<?> clazz)
     {
         return classToComponentId.computeIfAbsent(clazz, c ->

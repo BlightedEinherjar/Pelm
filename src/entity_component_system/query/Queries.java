@@ -1,5 +1,7 @@
 package entity_component_system.query;
 
+import examples.ecs.squares.Message;
+
 import java.util.stream.Stream;
 
 // If you need more than 16 separate components, just cry.
@@ -98,12 +100,6 @@ public enum Queries
         public final Class<A> a;
 
         public Query1Specification(final Class<A> a) { this.a = a; }
-
-        // NO. Not sure how to have them conform to interface.
-        public <B> Query2Specification<A, B> or(final Class<B> type1, final Class<B> type2)
-        {
-
-        }
 
         public Query1Specification<A> with(final Class<?> with)
         {
