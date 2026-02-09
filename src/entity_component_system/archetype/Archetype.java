@@ -14,7 +14,7 @@ public class Archetype
 
     public final BitSet componentSignature;
 
-    public Archetype(EntityComponentSystem ecs, BitSet componentTypes)
+    public Archetype(final EntityComponentSystem ecs, final BitSet componentTypes)
     {
         this.ecs = ecs;
         this.componentSignature = componentTypes;
@@ -22,7 +22,7 @@ public class Archetype
         this.componentSignature.stream().forEach(x -> componentMap.put(x, new ArrayList<>()));
     }
 
-    public void deleteAt(int entityIndex)
+    public void deleteAt(final int entityIndex)
     {
         // If at the end
         if (entityIndex == entityIds.size() - 1)
@@ -36,13 +36,13 @@ public class Archetype
         }
 
         // Update the location of last!
-        var lastEntity = entityIds.removeLast();
+        final var lastEntity = entityIds.removeLast();
 
         entityIds.set(entityIndex, lastEntity);
 
         componentMap.values().forEach(componentList ->
         {
-            var last = componentList.removeLast();
+            final var last = componentList.removeLast();
 
             componentList.set(entityIndex, last);
         });

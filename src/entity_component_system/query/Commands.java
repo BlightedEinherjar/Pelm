@@ -7,14 +7,14 @@ public class Commands
 {
     private final EntityComponentSystem entityComponentSystem;
 
-    public Commands markForDeath(Entity entity)
+    public Commands markForDeath(final Entity entity)
     {
         entityComponentSystem.markForDeath(entity);
 
         return this;
     }
 
-    public Commands spawn(Object ... components)
+    public Commands spawn(final Object ... components)
     {
         entityComponentSystem.spawnBuffer.add(components);
 
@@ -35,12 +35,12 @@ public class Commands
         return this;
     }
 
-    public boolean isAlive(Entity entity)
+    public boolean isAlive(final Entity entity)
     {
         return this.entityComponentSystem.entityLocations.get(entity.id()).alive;
     }
 
-    public Commands(EntityComponentSystem entityComponentSystem)
+    public Commands(final EntityComponentSystem entityComponentSystem)
     {
         this.entityComponentSystem = entityComponentSystem;
     }

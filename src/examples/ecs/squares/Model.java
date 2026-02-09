@@ -95,9 +95,9 @@ public record Model(EntityComponentSystem ecs)
 
     public static class Shape
     {
-        public float size;
+        public final float size;
 
-        public ShapeEnum shape;
+        public final ShapeEnum shape;
 
         public Shape(final float size, final ShapeEnum shape)
         {

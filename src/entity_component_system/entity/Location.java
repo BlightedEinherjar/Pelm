@@ -2,7 +2,7 @@ package entity_component_system.entity;
 
 public class Location
 {
-    public Location(int archetypeId, int entityIndex, int entityGeneration, boolean alive)
+    public Location(final int archetypeId, final int entityIndex, final int entityGeneration, final boolean alive)
     {
         this.archetypeId = archetypeId;
         this.entityIndex = entityIndex;

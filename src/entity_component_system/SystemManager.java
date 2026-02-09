@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 @SuppressWarnings("unchecked")
 public class SystemManager
 {
-    Map<Class<?>, List<Consumer<?>>> systems = new HashMap<>();
+    final Map<Class<?>, List<Consumer<?>>> systems = new HashMap<>();
     private final EntityComponentSystem ecs;
     private final Commands commands;
 

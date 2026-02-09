@@ -7,7 +7,7 @@ public abstract class QuerySpecification
 {
     public final ArrayList<Filter> filters = new ArrayList<>();
 
-    public void addFilter(Filter filter)
+    public void addFilter(final Filter filter)
     {
         filters.add(filter);
     }

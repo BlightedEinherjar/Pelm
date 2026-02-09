@@ -13,11 +13,11 @@ import java.util.stream.Stream;
 @SuppressWarnings("unchecked")
 public class ArchetypeManager
 {
-    public Map<Class<?>, Integer> classToComponentId = new HashMap<>();
-    public List<Class<?>> componentIdToClass = new ArrayList<>();
+    public final Map<Class<?>, Integer> classToComponentId = new HashMap<>();
+    public final List<Class<?>> componentIdToClass = new ArrayList<>();
 
-    public List<Archetype> archetypes = new ArrayList<>();
-    public Map<BitSet, Integer> archetypeComponentSetToId = new HashMap<>();
+    public final List<Archetype> archetypes = new ArrayList<>();
+    public final Map<BitSet, Integer> archetypeComponentSetToId = new HashMap<>();
     private final EntityComponentSystem ecs;
 
     public ArchetypeManager(final EntityComponentSystem ecs)
