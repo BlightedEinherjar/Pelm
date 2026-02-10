@@ -1,11 +1,11 @@
-package core;
+package pelm.core;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import subscription.TimerSubscription;
+import pelm.subscription.TimerSubscription;
 
 public class EventManager<TMessage>
 {

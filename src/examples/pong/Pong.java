@@ -1,7 +1,7 @@
 package examples.pong;
 
-import core.Pelm;
-import core.Subscription;
+import pelm.core.Pelm;
+import pelm.core.Subscription;
 import examples.pong.message.Message;
 import examples.pong.model.*;
 import examples.pong.utils.Vec2;
@@ -9,12 +9,8 @@ import processing.core.PFont;
 
 import examples.pong.message.*;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Scanner;
 import java.util.stream.Stream;
 
 import static examples.pong.model.Ball.*;

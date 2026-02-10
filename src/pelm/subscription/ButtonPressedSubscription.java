@@ -1,6 +1,6 @@
-package subscription;
+package pelm.subscription;
 
-import core.SubscriptionCategory;
+import pelm.core.SubscriptionCategory;
 import processing.event.KeyEvent;
 
 import java.util.function.Function;

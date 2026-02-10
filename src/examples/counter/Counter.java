@@ -1,8 +1,8 @@
 package examples.counter;
 
-import subscription.MouseClickedSubscription;
-import core.Pelm;
-import core.Subscription;
+import pelm.subscription.MouseClickedSubscription;
+import pelm.core.Pelm;
+import pelm.core.Subscription;
 
 import java.util.stream.Stream;
 

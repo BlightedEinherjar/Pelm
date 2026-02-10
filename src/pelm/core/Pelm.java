@@ -1,4 +1,4 @@
-package core;
+package pelm.core;
 
 import processing.core.PApplet;
 import processing.event.KeyEvent;

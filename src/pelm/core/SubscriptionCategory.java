@@ -1,4 +1,4 @@
-package core;
+package pelm.core;
 
 public enum SubscriptionCategory
 {

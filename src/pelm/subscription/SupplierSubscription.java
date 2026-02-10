@@ -1,6 +1,6 @@
-package subscription;
+package pelm.subscription;
 
-import core.Subscription;
+import pelm.core.Subscription;
 
 import java.util.function.Supplier;
 

@@ -1,7 +1,7 @@
-package subscription;
+package pelm.subscription;
 
-import core.Subscription;
-import core.SubscriptionCategory;
+import pelm.core.Subscription;
+import pelm.core.SubscriptionCategory;
 
 import java.util.function.Function;
 

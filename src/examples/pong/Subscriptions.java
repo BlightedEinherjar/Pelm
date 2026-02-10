@@ -1,13 +1,13 @@
 package examples.pong;
 
-import core.Subscription;
-import core.SubscriptionCategory;
+import pelm.core.Subscription;
+import pelm.core.SubscriptionCategory;
 import examples.pong.message.*;
 import examples.pong.model.Direction;
 import examples.pong.model.Player;
-import subscription.TimerSubscription;
+import pelm.subscription.TimerSubscription;
 import processing.event.KeyEvent;
-import subscription.FunctionSubscription;
+import pelm.subscription.FunctionSubscription;
 
 import java.util.List;
 
