@@ -3,7 +3,9 @@ package utils.safe_queue;
 import utils.result.Result;
 
 import java.util.ArrayDeque;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class ArrayQueue<T> implements SafeQueue<T>
 {
@@ -35,5 +37,13 @@ public class ArrayQueue<T> implements SafeQueue<T>
     public void enqueue(final T value)
     {
         queue.offer(value);
+    }
+
+    // Empties the queue as well, just for fun.
+    @SuppressWarnings("OptionalGetWithoutIsPresent")
+    @Override
+    public Stream<T> stream()
+    {
+        return Stream.generate(this::dequeue).takeWhile(Optional::isPresent).map(Optional::get);
     }
 }

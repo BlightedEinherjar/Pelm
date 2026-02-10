@@ -1,0 +1,1 @@
+Important note, two queries within the same system should NEVER modify the same entity. Both can read, but only one can write. 

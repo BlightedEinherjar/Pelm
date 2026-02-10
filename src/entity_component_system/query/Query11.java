@@ -1,7 +1,7 @@
 package entity_component_system.query;
 
 import entity_component_system.EntityComponentSystem;
-import entity_component_system.row.Row11;
+import utils.row.Row11;
 
 import java.util.Iterator;
 

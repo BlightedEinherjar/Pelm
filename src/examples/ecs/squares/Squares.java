@@ -8,7 +8,8 @@ import java.util.stream.Stream;
 
 public class Squares extends Pelm<Model, Message>
 {
-    public Squares() {
+    public Squares()
+    {
         super(Model.init());
     }
 
@@ -40,8 +41,8 @@ public class Squares extends Pelm<Model, Message>
 
         final Model.Velocity vel = new Model.Velocity();
 
-        vel.x = random(0, width / 100f);
-        vel.y = random(0, height / 100f);
+        vel.x = random(-width / 100f, width / 100f);
+        vel.y = random(-width / 100f, height / 100f);
 
         final var size = random(0f, 50f);
 

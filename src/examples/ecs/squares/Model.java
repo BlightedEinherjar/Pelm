@@ -23,28 +23,37 @@ public record Model(EntityComponentSystem ecs)
 
         entityComponentSystem.spawn(position, velocity, initialShape);
 
-        entityComponentSystem.registerSystem(Message.Interval.class, (msg, _, query) ->
-                query.forEach(row ->
+        // Demonstration of using commands.query in place of a system query.
+        entityComponentSystem.registerSystem(Message.Interval.class, (msg, commands) ->
+        {
+            final var query = commands.query(Queries.query(Position.class, Velocity.class));
+
+            query.forEach(row ->
+            {
+                final var pos = row.a();
+
+                final var vel = row.b();
+
+                if (pos.x + 50 > msg.width() || pos.x < 0)
                 {
-                    final var pos = row.a();
+                    vel.x = -vel.x;
+                }
 
-                    final var vel = row.b();
+                if (pos.y + 50 > msg.height() || pos.y < 0)
+                {
+                    vel.y = -vel.y;
+                }
 
-                    if (pos.x + 50 > msg.width() || pos.x < 0)
-                    {
-                        vel.x = -vel.x;
-                    }
+                pos.x += vel.x;
+                pos.y += vel.y;
 
-                    if (pos.y + 50 > msg.height() || pos.y < 0)
-                    {
-                        vel.y = -vel.y;
-                    }
+                vel.x *= 0.99f;
+                vel.y *= 0.99f;
 
-                    pos.x += vel.x;
-                    pos.y += vel.y;
-                }), Queries.query(Position.class, Velocity.class));
+            });
+        });
 
-        entityComponentSystem.registerSystem(Message.Draw.class, (msg, commands, query) ->
+        entityComponentSystem.registerSystem(Message.Draw.class, (msg, _, query) ->
         {
             final var drawContext = msg.drawContext();
 
@@ -69,10 +78,10 @@ public record Model(EntityComponentSystem ecs)
             });
         }, Queries.query(Position.class, Shape.class));
 
-        entityComponentSystem.registerEmptySystem(Message.Spawn.class, (msg, commands) ->
+        entityComponentSystem.registerSystem(Message.Spawn.class, (msg, commands) ->
                 commands.spawn(msg.position(), msg.velocity(), msg.shape()));
 
-        entityComponentSystem.registerEmptySystem(Message.FlushSpawn.class, (_, commands) ->
+        entityComponentSystem.registerSystem(Message.FlushSpawn.class, (_, commands) ->
         {
            commands.flushSpawn();
         });
