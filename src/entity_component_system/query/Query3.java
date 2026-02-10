@@ -1,8 +1,7 @@
 package entity_component_system.query;
 
 import entity_component_system.EntityComponentSystem;
-import entity_component_system.row.Row2;
-import entity_component_system.row.Row3;
+import entity_component_system.row.*;
 
 import java.util.Iterator;
 
@@ -23,3 +22,4 @@ public class Query3<A, B, C> implements Iterable<Row3<A, B, C>>
         return ecs.archetypeManager.query3(querySpecification).iterator();
     }
 }
+

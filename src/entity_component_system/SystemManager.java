@@ -1,13 +1,11 @@
 package entity_component_system;
 
 import entity_component_system.query.*;
-import entity_component_system.utils.TriConsumer;
+import utils.TriConsumer;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
 public class SystemManager

@@ -5,10 +5,9 @@ import entity_component_system.entity.Entity;
 import entity_component_system.entity.Location;
 import entity_component_system.query.*;
 import entity_component_system.row.Row2;
-import entity_component_system.utils.TriConsumer;
+import utils.TriConsumer;
 import entity_component_system.utils.safe_queue.ArrayQueue;
 import entity_component_system.utils.safe_queue.SafeQueue;
-import processing.core.PApplet;
 
 import java.util.ArrayList;
 import java.util.List;

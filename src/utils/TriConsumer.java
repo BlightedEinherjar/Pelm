@@ -1,4 +1,4 @@
-package entity_component_system.utils;
+package utils;
 
 @FunctionalInterface
 public interface TriConsumer<T1, T2, T3>

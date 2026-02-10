@@ -15,11 +15,11 @@ public class Main
 
     public static void main(final String[] args)
     {
-        System.out.println(Arrays.stream(TestI.TestC.class.getInterfaces()).map(Class::getName).collect(Collectors.joining()));
+//        System.out.println(Arrays.stream(TestI.TestC.class.getInterfaces()).map(Class::getName).collect(Collectors.joining()));
 
-//        final var pelm = new Squares();
-//
-//        PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
+        final var pelm = new Squares();
+
+        PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
 
 //        var pelm = new Counter(0);
 //

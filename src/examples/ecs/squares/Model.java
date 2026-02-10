@@ -2,7 +2,6 @@ package examples.ecs.squares;
 
 import entity_component_system.EntityComponentSystem;
 import entity_component_system.query.Queries;
-import processing.core.PApplet;
 
 public record Model(EntityComponentSystem ecs)
 {
@@ -56,15 +55,15 @@ public record Model(EntityComponentSystem ecs)
                 final var pos = row.a();
                 final var shape = row.b();
 
-                switch (shape.shape)
+                switch (shape)
                 {
-                    case Shape.ShapeEnum.Square:
-                        System.out.printf("Drawing square at %f, %f with length %f\n", pos.x, pos.y, shape.size);
-                        drawContext.square(pos.x, pos.y, shape.size);
+                    case final Shape.Square square:
+                        System.out.printf("Drawing square at %f, %f with length %f\n", pos.x, pos.y, square.sideLength);
+                        drawContext.square(pos.x, pos.y, square.sideLength);
                         break;
-                    case Shape.ShapeEnum.Circle:
-                        System.out.printf("Drawing circle at %f, %f with length %f\n", pos.x, pos.y, shape.size);
-                        drawContext.circle(pos.x, pos.y, shape.size);
+                    case final Shape.Circle circle:
+                        System.out.printf("Drawing circle at %f, %f with length %f\n", pos.x, pos.y, circle.radius);
+                        drawContext.circle(pos.x, pos.y, circle.radius);
                         break;
                 }
             });
@@ -93,32 +92,65 @@ public record Model(EntityComponentSystem ecs)
         public float y;
     }
 
-    public static class Shape
+    public sealed interface Shape permits Shape.Square, Shape.Circle
     {
-        public final float size;
-
-        public final ShapeEnum shape;
-
-        public Shape(final float size, final ShapeEnum shape)
+        static Shape circle(final float radius)
         {
-            this.size = size;
-            this.shape = shape;
+            return new Circle(radius);
         }
 
-        public static Shape square(final float size)
+        static Shape square(final float sideLength)
         {
-            return new Shape(size, ShapeEnum.Square);
+            return new Square(sideLength);
         }
 
-        public static Shape circle(final float size)
+        final class Square implements Shape
         {
-            return new Shape(size, ShapeEnum.Circle);
+            public float sideLength;
+
+            public Square(final float sideLength)
+            {
+                this.sideLength = sideLength;
+            }
         }
 
-        public enum ShapeEnum
+        final class Circle implements Shape
         {
-            Square,
-            Circle
+            public float radius;
+
+            public Circle(final float radius)
+            {
+                this.radius = radius;
+            }
         }
     }
+
+//    public static class Shape
+//    {
+//        public final float size;
+//
+//        public final ShapeEnum shape;
+//
+//        public Shape(final float size, final ShapeEnum shape)
+//        {
+//            this.size = size;
+//            this.shape = shape;
+//        }
+//
+//        public static Shape square(final float size)
+//        {
+//            return new Shape(size, ShapeEnum.Square);
+//        }
+//
+//        public static Shape circle(final float size)
+//        {
+//            return new Shape(size, ShapeEnum.Circle);
+//        }
+//
+//        public enum ShapeEnum
+//        {
+//            Square,
+//            Circle
+//        }
+//    }
 }
