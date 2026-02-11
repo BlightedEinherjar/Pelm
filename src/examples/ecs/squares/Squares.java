@@ -22,7 +22,7 @@ public class Squares extends Pelm<Model, Message>
     @Override
     protected void onSetup()
     {
-        for (int i = 0; i < 50; i++)
+        for (int i = 0; i < 100; i++)
         {
             final Model.Position pos = new Model.Position();
 

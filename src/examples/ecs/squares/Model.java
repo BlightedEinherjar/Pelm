@@ -59,8 +59,8 @@ public record Model(EntityComponentSystem ecs)
             pos.x += vel.x;
             pos.y += vel.y;
 
-            vel.x *= 0.99f;
-            vel.y *= 0.99f;
+            vel.x *= 0.995f;
+            vel.y *= 0.995f;
 
         });
     }
@@ -68,8 +68,6 @@ public record Model(EntityComponentSystem ecs)
     private static void drawParticles(final Message.Draw msg, final Commands commands, final Query2<Position, Shape> query)
     {
         final var drawContext = msg.drawContext();
-
-        System.out.println("Now!");
 
         query.forEach(row ->
         {
@@ -79,11 +77,9 @@ public record Model(EntityComponentSystem ecs)
             switch (shape)
             {
                 case final Shape.Square square:
-                    System.out.printf("Drawing square at %f, %f with length %f\n", pos.x, pos.y, square.sideLength);
                     drawContext.square(pos.x, pos.y, square.sideLength);
                     break;
                 case final Shape.Circle circle:
-                    System.out.printf("Drawing circle at %f, %f with length %f\n", pos.x, pos.y, circle.radius);
                     drawContext.circle(pos.x, pos.y, circle.radius);
                     break;
             }

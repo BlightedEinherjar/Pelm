@@ -30,14 +30,17 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
 
     // Use onSetup as the setup function. This is limited to ensure updateSubscriptions is always called.
     @Override
-    public final void setup() {
+    public final void setup()
+    {
         onSetup();
         updateSubscriptions();
+        previousFrameMillis = millis();
     }
 
     protected void onSetup() { }
 
-    private void updateSubscriptions() {
+    private void updateSubscriptions()
+    {
         final var subscriptions = subscriptions(this.model);
 
         eventManager.activeSubscriptions.values().forEach(Set::clear);
@@ -46,16 +49,21 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
                 eventManager.activeSubscriptions.get(sub.category()).add(sub));
     }
 
+    private int previousFrameMillis = millis();
     @Override
-    public void draw()
+    public final void draw()
     {
         final int m = millis();
+
+        eventManager.activeOfCategory(SubscriptionCategory.AnimationFrame).forEach(x -> this.updateModel(x.trigger(m - previousFrameMillis)));
+
+        previousFrameMillis = m;
 
         eventManager.timerSubscriptions().toList().forEach(subscription ->
         {
             for (int i = 0; i < subscription.shouldTrigger(m); i++)
             {
-                this.updateModel(subscription.trigger(null));
+                this.updateModel(subscription.trigger());
             }
         });
 

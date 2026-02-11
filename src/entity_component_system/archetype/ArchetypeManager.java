@@ -152,8 +152,6 @@ private <A> Stream<Archetype> queryBaseStream(final QuerySpecification querySpec
 
     public <A, B> Stream<Row2<A, B>> query2(final Queries.Query2Specification<A, B> querySpecification)
     {
-        System.out.println(queryBaseStream(querySpecification).flatMap(x -> x.componentMap.keySet().stream().map(y -> this.componentIdToClass.get(y).getName())).toList());
-
         return queryBaseStream(querySpecification)
                 .flatMap(a ->
                         zip(componentStream(a, querySpecification.a),

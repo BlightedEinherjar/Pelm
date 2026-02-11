@@ -18,4 +18,9 @@ public abstract class SupplierSubscription<TMessage> implements Subscription<TMe
     {
         return supplier.get();
     }
+
+    public TMessage trigger()
+    {
+        return supplier.get();
+    }
 }
