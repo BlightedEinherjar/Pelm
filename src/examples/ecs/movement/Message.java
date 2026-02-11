@@ -1,5 +1,5 @@
 package examples.ecs.movement;
 
-public interface Message
+public record Message()
 {
 }

@@ -1,10 +1,13 @@
 package pelm.core;
 
 import processing.core.PApplet;
+import processing.core.PGraphics;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public abstract class Pelm<TModel, TMessage> extends PApplet
@@ -16,6 +19,17 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     {
         this.model = model;
         this.eventManager = EventManager.create();
+    }
+
+    public Pelm(final Supplier<TModel> modelSupplier)
+    {
+        this(modelSupplier.get());
+    }
+
+    public Pelm(final Function<PApplet, TModel> modelFunction)
+    {
+        this.eventManager = EventManager.create();
+        this.model = modelFunction.apply(this);
     }
 
     protected abstract Stream<? extends Subscription<TMessage>> subscriptions(TModel model);

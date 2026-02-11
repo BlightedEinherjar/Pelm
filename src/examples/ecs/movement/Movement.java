@@ -3,33 +3,45 @@ package examples.ecs.movement;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
 import pelm.subscription.AnimationFrameSubscription;
+import processing.core.PImage;
 
 import java.util.stream.Stream;
 
 public class Movement extends Pelm<Model, Message>
 {
-    public Movement(final Model model) {
-        super(model);
+    public Movement()
+    {
+        super(Model::init);
     }
 
-    private final AnimationFrameSubscription animationFrameSubscription = new AnimationFrameSubscription<Message>(d ->
+    private static Message apply(Integer d)
     {
-        System.out.println(d);
-        return null;
-    });
+        return new Message();
+    }
+
+    @Override
+    public void settings()
+    {
+        fullScreen();
+    }
+
+    private final AnimationFrameSubscription<Message> animationFrameSubscription = new AnimationFrameSubscription<Message>(Movement::apply);
 
     @Override
     protected Stream<? extends Subscription<Message>> subscriptions(final Model model) {
-        return Stream.empty();
+        return Stream.of(animationFrameSubscription);
     }
 
     @Override
-    protected void view(final Model model) {
+    protected void view(final Model model)
+    {
+        background(127, 255, 3);
 
+        image(model.walkSprites.toward()[0], width / 2.0f, height / 2.0f);
     }
 
     @Override
     protected Model update(final Message message, final Model model) {
-        return null;
+        return model;
     }
 }
