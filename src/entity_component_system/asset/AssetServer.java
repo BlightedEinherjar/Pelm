@@ -4,10 +4,7 @@ import entity_component_system.sprite.TextureAtlasLayout;
 import processing.core.PApplet;
 import processing.core.PImage;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 // Currently no resources system, might not implement one as it is not really necessary in Java.
@@ -34,7 +31,7 @@ public class AssetServer
 
         final var handle = new LazyHandle<>(() -> textureImage.get(
                 layout.frameSize().x() * (boundedIndex % layout.columns()),
-                layout.frameSize().y() * (boundedIndex / layout.rows()),
+                layout.frameSize().y() * (boundedIndex / layout.columns()),
                 layout.frameSize().x(),
                 layout.frameSize().y()));
 

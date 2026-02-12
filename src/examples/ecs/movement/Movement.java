@@ -5,6 +5,7 @@ import entity_component_system.sprite.TextureAtlasLayout;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
 import pelm.subscription.AnimationFrameSubscription;
+import processing.core.PGraphics;
 import processing.core.PImage;
 import utils.IVec2;
 
@@ -12,6 +13,8 @@ import java.util.stream.Stream;
 
 public class Movement extends Pelm<Model, Message>
 {
+    private PGraphics drawContext;
+
     public Movement()
     {
         super(Model::init);
@@ -25,9 +28,15 @@ public class Movement extends Pelm<Model, Message>
     @Override
     public void settings()
     {
-        size(800, 800, P2D);
-//        fullScreen();
-//        noSmooth();
+        noSmooth();
+
+        fullScreen();
+    }
+
+    @Override
+    protected void onSetup()
+    {
+        this.drawContext = createGraphics(480, 270);
     }
 
     private final AnimationFrameSubscription<Message> animationFrameSubscription = new AnimationFrameSubscription<Message>(Movement::apply);
@@ -41,13 +50,19 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected void view(final Model model)
     {
-        background(127, 255, 3);
+        drawContext.beginDraw();
+
+        drawContext.background(127, 255, 3);
 
         final Handle<PImage> pImageHandle = model.assetServer.loadImage(Model.Slime1WalkFramesPath);
 
         final Handle<PImage> pImageHandle1 = model.assetServer.imageFrame(pImageHandle.get(), new TextureAtlasLayout(new IVec2(64, 64), 8, 4), (index++ / 10) % 8);
 
-        image(pImageHandle1.get(), 0, 0, width, height);
+        drawContext.image(pImageHandle1.get(), 0, 0, 480, 270);
+
+        drawContext.endDraw();
+
+        image(drawContext, 0, 0, width, height);
     }
 
     @Override

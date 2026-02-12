@@ -1,0 +1,28 @@
+<component name="libraryTable">
+  <library name="core-4.5.1">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/src/core-4.5.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-android-aarch64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-linux-aarch64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-linux-amd64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-linux-armv6hf.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-macosx-universal.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0-natives-windows-amd64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-2.5.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-android-aarch64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-linux-aarch64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-linux-amd64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-linux-armv6hf.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-macosx-universal.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0-natives-windows-amd64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/jogl-all-2.5.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/kotlin-stdlib-2.2.20.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/annotations-13.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/antlr-2.7.7.jar!/" />
+      <root url="jar://$PROJECT_DIR$/src/gluegen-rt-main-2.5.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+    <jarDirectory url="jar://$PROJECT_DIR$/src/gluegen-rt-main-2.5.0.jar!/" recursive="false" />
+  </library>
+</component>
