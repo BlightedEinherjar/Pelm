@@ -27,7 +27,9 @@ public class TimerSubscription<TMessage> extends SupplierSubscription<TMessage>
     // Calculates how many times (if any) it should trigger
     public int shouldTrigger(final int nowMilliseconds)
     {
-        return Math.floorDiv(nowMilliseconds - (createdMilliseconds + periodMilliseconds * howManyTimesTriggered), periodMilliseconds);
+        final int i = Math.floorDiv(nowMilliseconds - (createdMilliseconds + periodMilliseconds * howManyTimesTriggered), periodMilliseconds);
+        System.out.println(i);
+        return i;
     }
 
     @Override

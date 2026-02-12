@@ -5,8 +5,8 @@ import processing.core.PImage;
 
 public class Sprite
 {
-    public final Handle<PImage> texture;
-    public final TextureAtlas textureAtlas;
+    public Handle<PImage> texture;
+    public TextureAtlas textureAtlas;
     public boolean flipX = false;
     public boolean flipY = false;
 

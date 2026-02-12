@@ -40,7 +40,7 @@ public class ArchetypeManager
 
         final Class<?>[] interfaces = type.getInterfaces();
 
-        if (interfaces.length == 1)
+        if (interfaces.length == 1) // Should maybe add an isSealed back into here.
         {
             final var inter = interfaces[0];
 

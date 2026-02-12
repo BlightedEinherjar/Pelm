@@ -1,5 +1,5 @@
 package examples.ecs.movement;
 
-public record Message()
+public sealed interface Message permits UpdateSlimeAnimationFrame
 {
 }

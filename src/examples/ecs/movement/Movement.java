@@ -1,13 +1,9 @@
 package examples.ecs.movement;
 
-import entity_component_system.asset.Handle;
-import entity_component_system.sprite.TextureAtlasLayout;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
-import pelm.subscription.AnimationFrameSubscription;
+import pelm.subscription.TimerSubscription;
 import processing.core.PGraphics;
-import processing.core.PImage;
-import utils.IVec2;
 
 import java.util.stream.Stream;
 
@@ -18,11 +14,6 @@ public class Movement extends Pelm<Model, Message>
     public Movement()
     {
         super(Model::init);
-    }
-
-    private static Message apply(final Integer d)
-    {
-        return new Message();
     }
 
     @Override
@@ -36,14 +27,20 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected void onSetup()
     {
+        model.setup();
+
         this.drawContext = createGraphics(480, 270);
     }
 
-    private final AnimationFrameSubscription<Message> animationFrameSubscription = new AnimationFrameSubscription<Message>(Movement::apply);
+    private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 10000, () ->
+    {
+        System.out.println("Called!");
+        return new UpdateSlimeAnimationFrame();
+    });
 
     @Override
     protected Stream<? extends Subscription<Message>> subscriptions(final Model model) {
-        return Stream.of(animationFrameSubscription);
+        return Stream.of(updateSlimeFrameTimer);
     }
 
     int index = 0;
@@ -54,11 +51,7 @@ public class Movement extends Pelm<Model, Message>
 
         drawContext.background(127, 255, 3);
 
-        final Handle<PImage> pImageHandle = model.assetServer.loadImage(Model.Slime1WalkFramesPath);
-
-        final Handle<PImage> pImageHandle1 = model.assetServer.imageFrame(pImageHandle.get(), new TextureAtlasLayout(new IVec2(64, 64), 8, 4), (index++ / 10) % 8);
-
-        drawContext.image(pImageHandle1.get(), 0, 0, 480, 270);
+        model.entityComponentSystem.update(new Draw(drawContext));
 
         drawContext.endDraw();
 
@@ -66,7 +59,10 @@ public class Movement extends Pelm<Model, Message>
     }
 
     @Override
-    protected Model update(final Message message, final Model model) {
+    protected Model update(final Message message, final Model model)
+    {
+        model.entityComponentSystem.update(message);
+
         return model;
     }
 }

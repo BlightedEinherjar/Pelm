@@ -75,7 +75,8 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
 
         eventManager.timerSubscriptions().toList().forEach(subscription ->
         {
-            for (int i = 0; i < subscription.shouldTrigger(m); i++)
+            final int howMany = subscription.shouldTrigger(m);
+            for (int i = 0; i < howMany; i++)
             {
                 this.updateModel(subscription.trigger());
             }
