@@ -1,6 +1,5 @@
 package entity_component_system.asset;
 
-import entity_component_system.sprite.AtlasImageSprite;
 import entity_component_system.sprite.TextureAtlasLayout;
 import processing.core.PApplet;
 import processing.core.PImage;
@@ -31,11 +30,13 @@ public class AssetServer
 
     public Handle<PImage> imageFrame(final PImage textureImage, final TextureAtlasLayout layout, final int index)
     {
+        final int boundedIndex = index % (layout.rows() * layout.columns());
+
         final var handle = new LazyHandle<>(() -> textureImage.get(
-                layout.frameSize().x * (index % layout.columns()),
-                layout.frameSize().y * (index / layout.rows()),
-                layout.frameSize().x,
-                layout.frameSize().y));
+                layout.frameSize().x() * (boundedIndex % layout.columns()),
+                layout.frameSize().y() * (boundedIndex / layout.rows()),
+                layout.frameSize().x(),
+                layout.frameSize().y()));
 
         this.handleListMap.computeIfAbsent(PImage.class, _ -> new ArrayList<>()).add(handle);
 
@@ -58,5 +59,10 @@ public class AssetServer
 
             return new EmptyHandle<>();
         });
+    }
+
+    public Handle<PImage> loadImage(final String dataPath)
+    {
+        return load(PImage.class, dataPath);
     }
 }

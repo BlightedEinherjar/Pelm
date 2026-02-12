@@ -1,7 +1,5 @@
 package utils;
 
-public class IVec2
+public record IVec2(int x, int y)
 {
-    public int x;
-    public int y;
 }
