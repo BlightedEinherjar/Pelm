@@ -1,13 +1,16 @@
 package entity_component_system.components.space;
 
-public class Position
-{
-    public float x;
-    public float y;
+import processing.core.PVector;
 
+public class Position extends PVector
+{
     public Position(final float x, final float y)
     {
-        this.x = x;
-        this.y = y;
+        super(x, y);
+    }
+
+    public static Position origin()
+    {
+        return new Position(0, 0);
     }
 }

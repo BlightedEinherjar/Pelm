@@ -24,6 +24,7 @@ public class EntityComponentSystem
     public final List<Object[]> spawnBuffer = new ArrayList<>();
     final SystemManager systemManager;
     final Commands commands = new Commands(this);
+    // Need to pull this out to a more complex system to be able to handle multiple cursors.
     public final Map<Class<?>, SafeQueue<?>> events = new HashMap<>();
 
     public EntityComponentSystem()

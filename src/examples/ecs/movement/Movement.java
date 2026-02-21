@@ -2,8 +2,12 @@ package examples.ecs.movement;
 
 import pelm.core.Pelm;
 import pelm.core.Subscription;
+import pelm.core.SubscriptionCategory;
+import pelm.subscription.ButtonPressedSubscription;
+import pelm.subscription.FunctionSubscription;
 import pelm.subscription.TimerSubscription;
 import processing.core.PGraphics;
+import processing.event.KeyEvent;
 
 import java.util.stream.Stream;
 
@@ -32,18 +36,16 @@ public class Movement extends Pelm<Model, Message>
         this.drawContext = createGraphics(480, 270);
     }
 
-    private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 10000, () ->
-    {
-        System.out.println("Called!");
-        return new UpdateSlimeAnimationFrame();
-    });
+    private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
+    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 15, PhysicsUpdate::new);
+    private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
+    private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
 
     @Override
     protected Stream<? extends Subscription<Message>> subscriptions(final Model model) {
-        return Stream.of(updateSlimeFrameTimer);
+        return Stream.of(updateSlimeFrameTimer, updatePhysicsTimer, keyPressSubscription, keyReleaseSubscription);
     }
 
-    int index = 0;
     @Override
     protected void view(final Model model)
     {
@@ -61,7 +63,17 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected Model update(final Message message, final Model model)
     {
-        model.entityComponentSystem.update(message);
+        switch (message)
+        {
+            case DirectionReleased(final int releasedKey):
+                model.keys.remove(releasedKey);
+                break;
+            case DirectionPressed(final int pressedKey):
+                model.keys.add(pressedKey);
+                break;
+            default:
+                model.entityComponentSystem.update(message);
+        }
 
         return model;
     }

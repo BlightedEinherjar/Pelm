@@ -7,9 +7,9 @@ import java.util.stream.Stream;
 
 import pelm.subscription.TimerSubscription;
 
-public class EventManager<TMessage>
+public class SubscriptionManager<TMessage>
 {
-    private EventManager() { }
+    private SubscriptionManager() { }
 
     public final HashMap<SubscriptionCategory, Set<Subscription<TMessage>>> activeSubscriptions = new HashMap<>();
 
@@ -23,9 +23,9 @@ public class EventManager<TMessage>
         return activeSubscriptions.get(category);
     }
 
-    public static <TMessage> EventManager<TMessage> create()
+    public static <TMessage> SubscriptionManager<TMessage> create()
     {
-        final var manager = new EventManager<TMessage>();
+        final var manager = new SubscriptionManager<TMessage>();
 
         final var categories = SubscriptionCategory.values();
 

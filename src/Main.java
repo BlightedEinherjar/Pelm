@@ -13,7 +13,7 @@ public class Main
     {
 //        System.out.println(Arrays.stream(TestI.TestC.class.getInterfaces()).map(Class::getName).collect(Collectors.joining()));
 
-        final var pelm = new Pong();
+        final var pelm = new Movement();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
 

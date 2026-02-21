@@ -1,7 +1,6 @@
 package pelm.core;
 
 import processing.core.PApplet;
-import processing.core.PGraphics;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 
@@ -12,13 +11,13 @@ import java.util.stream.Stream;
 
 public abstract class Pelm<TModel, TMessage> extends PApplet
 {
-    protected final EventManager<TMessage> eventManager;
+    protected final SubscriptionManager<TMessage> subscriptionManager;
     protected TModel model;
 
     public Pelm(final TModel model)
     {
         this.model = model;
-        this.eventManager = EventManager.create();
+        this.subscriptionManager = SubscriptionManager.create();
     }
 
     public Pelm(final Supplier<TModel> modelSupplier)
@@ -28,7 +27,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
 
     public Pelm(final Function<PApplet, TModel> modelFunction)
     {
-        this.eventManager = EventManager.create();
+        this.subscriptionManager = SubscriptionManager.create();
         this.model = modelFunction.apply(this);
     }
 
@@ -57,10 +56,10 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     {
         final var subscriptions = subscriptions(this.model);
 
-        eventManager.activeSubscriptions.values().forEach(Set::clear);
+        subscriptionManager.activeSubscriptions.values().forEach(Set::clear);
 
         subscriptions.forEach(sub ->
-                eventManager.activeSubscriptions.get(sub.category()).add(sub));
+                subscriptionManager.activeSubscriptions.get(sub.category()).add(sub));
     }
 
     private int previousFrameMillis = millis();
@@ -69,11 +68,11 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     {
         final int m = millis();
 
-        eventManager.activeOfCategory(SubscriptionCategory.AnimationFrame).forEach(x -> this.updateModel(x.trigger(m - previousFrameMillis)));
+        subscriptionManager.activeOfCategory(SubscriptionCategory.AnimationFrame).forEach(x -> this.updateModel(x.trigger(m - previousFrameMillis)));
 
         previousFrameMillis = m;
 
-        eventManager.timerSubscriptions().toList().forEach(subscription ->
+        subscriptionManager.timerSubscriptions().toList().forEach(subscription ->
         {
             final int howMany = subscription.shouldTrigger(m);
             for (int i = 0; i < howMany; i++)
@@ -91,7 +90,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mouseClicked(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseClicked)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -101,7 +100,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mousePressed(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MousePressed)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -111,7 +110,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mouseReleased(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseReleased)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -121,7 +120,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mouseMoved(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseMoved)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -131,7 +130,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mouseDragged(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseDragged)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -141,7 +140,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.mouseWheel(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseWheel)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -151,7 +150,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.keyPressed(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.KeyPressed)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -161,7 +160,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.keyReleased(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.KeyReleased)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -171,7 +170,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.keyTyped(event);
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.KeyTyped)
                 .forEach(subscription -> this.updateModel(subscription.trigger(event)));
     }
@@ -181,7 +180,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.focusGained();
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.FocusGained)
                 .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
@@ -191,7 +190,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.focusLost();
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.FocusLost)
                 .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
@@ -201,7 +200,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.windowResized();
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.WindowResized)
                 .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }
@@ -211,7 +210,7 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
         super.windowMoved();
 
         this
-                .eventManager
+                .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.WindowMoved)
                 .forEach(subscription -> this.updateModel(subscription.trigger(null)));
     }

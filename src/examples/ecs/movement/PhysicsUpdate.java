@@ -1,5 +1,5 @@
 package examples.ecs.movement;
 
-public record PhysicsUpdate()
+public record PhysicsUpdate() implements Message
 {
 }
