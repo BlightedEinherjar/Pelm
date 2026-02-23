@@ -1,18 +1,15 @@
-import examples.ecs.movement.Model;
+import entity_component_system.query.MessageManager;
+import entity_component_system.query.MessageReader;
+import entity_component_system.query.MessageWriter;
 import examples.ecs.movement.Movement;
-import examples.ecs.squares.Squares;
-import examples.pong.Pong;
 import processing.core.PApplet;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class Main
 {
     public static void main(final String[] args)
     {
-//        System.out.println(Arrays.stream(TestI.TestC.class.getInterfaces()).map(Class::getName).collect(Collectors.joining()));
-
         final var pelm = new Movement();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);

@@ -42,7 +42,8 @@ public class Movement extends Pelm<Model, Message>
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
 
     @Override
-    protected Stream<? extends Subscription<Message>> subscriptions(final Model model) {
+    protected Stream<? extends Subscription<Message>> subscriptions(final Model model)
+    {
         return Stream.of(updateSlimeFrameTimer, updatePhysicsTimer, keyPressSubscription, keyReleaseSubscription);
     }
 

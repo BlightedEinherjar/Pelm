@@ -1,15 +1,15 @@
 package entity_component_system.query;
 
 import java.util.*;
-import java.util.stream.Stream;
 
-public class EventManager
+public class MessageManager
 {
-    public HashMap<Class<?>, Events<?>> eventsMap = new HashMap<>();
+    public HashMap<Class<?>, Messages<?>> eventsMap = new HashMap<>();
 
-    public <T> Events<T> register(final Class<T> type)
+    @SuppressWarnings("unchecked")
+    public <T> Messages<T> access(final Class<T> type)
     {
-        eventsMap.put(type, new Events<T>());
+        return (Messages<T>) eventsMap.computeIfAbsent(type, _ -> new Messages<T>());
     }
 
 //    private int generation = 0;
