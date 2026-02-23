@@ -139,7 +139,7 @@ public class Model
         entityComponentSystem.spawn(player.build());
 
         final var box = EntityBuilder.create()
-                .with(new Collider2D(100, 10))
+                .with(new Collider2D(100, 10, new PVector(0, 0)))
                 .with(new Rectangle(100, 10, Color.red))
                 .with(new Drawable())
                 .with(new Position(-10f, 100f))
@@ -174,7 +174,13 @@ public class Model
             final var position = row.a();
             final var collider = row.b();
 
-            draw.drawContext().rect(position.x, position.y, collider.width, collider.height);
+            final PVector centre = centre(position, collider.width, collider.height);
+
+            draw.drawContext().stroke(0, 0, 255f);
+
+            draw.drawContext().point(centre.x, centre.y);
+
+            draw.drawContext().rect(position.x + collider.offset.x, position.y + collider.offset.y, collider.width, collider.height);
         }
 
         draw.drawContext().pop();
@@ -277,7 +283,7 @@ public class Model
                 .with(Force.zero())
                 .with(new Drawable())
                 .with(new Player())
-                .with(new Collider2D(16, 16))
+                .with(new Collider2D(16, 16, new PVector(24, 24)))
                 .with(new GroundedState(false))
                 .with(new Mass(1));
     }
@@ -362,13 +368,13 @@ public class Model
 
     private PVector getLeftToRight(final CollisionDetectionData right, final CollisionDetectionData left)
     {
-        final var leftCentre = centre(
-                right.position(),
+        final var rightCentre = centre(
+                right.position().copy().add(right.collider().offset),
                 right.collider().width,
                 right.collider().height);
 
-        final var rightCentre = centre(
-                left.position(),
+        final var leftCentre = centre(
+                left.position().copy().add(left.collider().offset),
                 left.collider().width,
                 left.collider().height);
 
@@ -399,7 +405,7 @@ public class Model
         );
     }
 
-    private PVector centre(final Position position, final int width, final int height)
+    private PVector centre(final PVector position, final int width, final int height)
     {
         // Might need to be a negative for height
         return new PVector(position.x + (float) width / 2, position.y + (float) height / 2);
@@ -407,7 +413,7 @@ public class Model
 
     private boolean isColliding(final Collider2D collider1, final Position position1, final Collider2D collider2, final Position position2)
     {
-        return rectanglesIntersect(position1, collider1.width, collider1.height, position2, collider2.width, collider2.height);
+        return rectanglesIntersect(position1.copy().add(collider1.offset), collider1.width, collider1.height, position2.copy().add(collider2.offset), collider2.width, collider2.height);
     }
 
     public static boolean rectanglesIntersect(final PVector firstTopLeft, final float firstWidth, final float firstHeight,
