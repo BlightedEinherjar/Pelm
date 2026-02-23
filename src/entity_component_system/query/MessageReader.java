@@ -21,8 +21,6 @@ public class MessageReader<T>
 
         this.generation = read.b();
 
-        System.out.println("Returned Generation: " + this.generation);
-
         return read.a();
 
 //        if (generation == messages.count)

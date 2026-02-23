@@ -4,12 +4,12 @@ import java.util.*;
 
 public class MessageManager
 {
-    public HashMap<Class<?>, Messages<?>> eventsMap = new HashMap<>();
+    public HashMap<Class<?>, Messages<?>> messagesMap = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     public <T> Messages<T> access(final Class<T> type)
     {
-        return (Messages<T>) eventsMap.computeIfAbsent(type, _ -> new Messages<T>());
+        return (Messages<T>) messagesMap.computeIfAbsent(type, _ -> new Messages<T>());
     }
 
 //    private int generation = 0;

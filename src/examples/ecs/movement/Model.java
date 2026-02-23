@@ -13,7 +13,6 @@ import entity_component_system.sprite.TextureAtlas;
 import entity_component_system.sprite.TextureAtlasLayout;
 import processing.core.PApplet;
 import processing.core.PImage;
-import processing.core.PShape;
 import processing.core.PVector;
 import utils.IVec2;
 import utils.row.Row2;
@@ -22,12 +21,20 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+// I dreamt this already worked...
 public class Model
 {
+    public static final float MoveAwayFactor = 0.1f;
+    public final MessageManager messageManager = new MessageManager();
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
     public final AssetServer assetServer;
+    public final Messages<Hit> hitMessages = messageManager.access(Hit.class);
+    public final MessageWriter<Hit> hitMessageWriter = hitMessages.createWriter();
+    public final MessageReader<Hit> hitMessageReader = hitMessages.createReader();
 
     public Model(final AssetServer assetServer)
     {
@@ -47,6 +54,11 @@ public class Model
         {
             row.a().x += row.b().x;
             row.a().y += row.b().y;
+
+            row.b().x = 0;
+            row.b().y = 0;
+
+            System.out.println(row.b());
         });
 
     }
@@ -140,13 +152,32 @@ public class Model
         entityComponentSystem
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
+            .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed, Queries.query(Force.class, GroundedState.class).with(Player.class))
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
-            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class))
-            .registerSystem(PhysicsUpdate.class, Model::applyCollisions, Queries.query(Collider2D.class, Position.class, Velocity.class, Entity.class));
+            .registerSystem(PhysicsUpdate.class, this::detectCollisions, Queries.query(Collider2D.class, Position.class, Entity.class))
+            .registerSystem(PhysicsUpdate.class, this::applyCollisions)
+            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+    }
+
+    private void drawColliders(final Draw draw, final Commands commands, final Query2<Position, Collider2D> query)
+    {
+        draw.drawContext().push();
+
+        draw.drawContext().noFill();
+
+        for (final var row : query)
+        {
+            final var position = row.a();
+            final var collider = row.b();
+
+            draw.drawContext().rect(position.x, position.y, collider.width, collider.height);
+        }
+
+        draw.drawContext().pop();
     }
 
     private void drawShapes(final Draw draw, final Commands commands, final Query2<Position, Shape> query)
@@ -160,33 +191,77 @@ public class Model
         }
     }
 
-    private static void applyCollisions(final PhysicsUpdate msg, final Commands commands, final Query4<Collider2D, Position, Velocity, Entity> query)
-    {
-        for (final var row1 : query)
-        {
-            for (final var row2 : query)
-            {
-                final var leftEntity = row1.d();
-                final var rightEntity = row2.d();
+//    private static void applyCollisions(final PhysicsUpdate msg, final Commands commands, final Query4<Collider2D, Position, Velocity, Entity> query)
+//    {
+//        for (final var row1 : query)
+//        {
+//            for (final var row2 : query)
+//            {
+//                final var leftEntity = row1.d();
+//                final var rightEntity = row2.d();
+//
+//                if (leftEntity.equals(rightEntity))
+//                {
+//                    continue;
+//                }
+//
+//                final var leftCollider = row1.a();
+//                final var rightCollider = row2.a();
+//
+//                final var leftPosition = row1.b();
+//                final var rightPosition = row2.b();
+//
+//                final var leftVelocity = row1.c();
+//                final var rightVelocity = row2.c();
+//
+//                if (rectanglesIntersect(leftPosition, leftCollider.width, leftCollider.height, rightPosition, rightCollider.width, rightCollider.height))
+//                {
+//                    leftVelocity.y = -1f;
+//                    break;
+//                }
+//            }
+//        }
+//    }
 
-                if (leftEntity.equals(rightEntity))
+    public static <T> T id(final T value)
+    {
+        return value;
+    }
+
+    public void applyCollisions(final PhysicsUpdate message, final Commands commands)
+    {
+        final var hits = hitMessageReader.read().collect(Collectors.toMap(x -> new Row2<>(x.left(), x.right()), Hit::leftToRight));
+
+        final var statics = commands.query(Queries.query(Entity.class).without(Velocity.class));
+
+        final var nonStatics = commands.query(Queries.query(Velocity.class, Entity.class));
+
+        for (final var nonStaticRow1 : nonStatics)
+        {
+            for (final var staticsRow : statics)
+            {
+                if (nonStaticRow1.b().id() < staticsRow.id())
                 {
-                    continue;
+                    final var key = new Row2<>(nonStaticRow1.b(), staticsRow);
+
+                    if (hits.containsKey(key))
+                    {
+                        final var nonStaticToStaticVector = hits.get(key);
+
+                        nonStaticRow1.a().add(nonStaticToStaticVector.copy().mult(-1 * MoveAwayFactor));
+                    }
                 }
 
-                final var leftCollider = row1.a();
-                final var rightCollider = row2.a();
-
-                final var leftPosition = row1.b();
-                final var rightPosition = row2.b();
-
-                final var leftVelocity = row1.c();
-                final var rightVelocity = row2.c();
-
-                if (rectanglesIntersect(leftPosition, leftCollider.width, leftCollider.height, rightPosition, rightCollider.width, rightCollider.height))
+                if (staticsRow.id() < nonStaticRow1.b().id())
                 {
-                    leftVelocity.y = -1f;
-                    break;
+                    final var key = new Row2<>(staticsRow, nonStaticRow1.b());
+
+                    if (hits.containsKey(key))
+                    {
+                        final var staticToNonStaticVector = hits.get(key);
+
+                        nonStaticRow1.a().add(staticToNonStaticVector.copy().mult(MoveAwayFactor));
+                    }
                 }
             }
         }
@@ -202,7 +277,7 @@ public class Model
                 .with(Force.zero())
                 .with(new Drawable())
                 .with(new Player())
-                .with(new Collider2D(32, 32))
+                .with(new Collider2D(16, 16))
                 .with(new GroundedState(false))
                 .with(new Mass(1));
     }
@@ -237,6 +312,102 @@ public class Model
             force.x = 0;
             force.y = 0;
         }
+    }
+
+    public void detectCollisions(final PhysicsUpdate message, final Commands commands, final Query3<Collider2D, Position, Entity> query)
+    {
+//        final var query2 = commands.query(Queries.query(Collider2D.class, Position.class, Entity.class));
+
+        int i = -1;
+        for (final var row1 : query)
+        {
+            i++;
+
+            StreamSupport.stream(query.spliterator(), false).skip(i).forEach(row2 ->
+            {
+                final var collider1 = row1.a();
+                final var collider2 = row2.a();
+
+                final var position1 = row1.b();
+                final var position2 = row2.b();
+
+                final var entity1 = row1.c();
+                final var entity2 = row2.c();
+
+                System.out.println(new Row2<>(entity1, entity2));
+
+                if (entity1.equals(entity2))
+                {
+                    return;
+                }
+
+                // Cannot use corners: https://www.desmos.com/Calculator/jguktvly6e
+                if (isColliding(collider1, position1, collider2, position2))
+                {
+                    // Ordering of entities (left < right)
+                    final Row2<CollisionDetectionData, CollisionDetectionData> leftRight = getLeftRight(entity1, collider1, position1, entity2, collider2, position2);
+
+                    final var left = leftRight.a();
+                    final var right = leftRight.b();
+
+                    final var leftToRight = getLeftToRight(right, left);
+
+                    System.out.printf("Collision detected: left=%s, right=%s with vector=%s\n", left, right, leftToRight);
+
+                    this.hitMessageWriter.send(new Hit(left.entity(), right.entity(), leftToRight));
+                }
+            });
+        }
+    }
+
+    private PVector getLeftToRight(final CollisionDetectionData right, final CollisionDetectionData left)
+    {
+        final var leftCentre = centre(
+                right.position(),
+                right.collider().width,
+                right.collider().height);
+
+        final var rightCentre = centre(
+                left.position(),
+                left.collider().width,
+                left.collider().height);
+
+        return rightCentre.sub(leftCentre);
+    }
+
+    private static Row2<CollisionDetectionData, CollisionDetectionData> getLeftRight(final Entity entity1,
+                                                                                     final Collider2D collider1,
+                                                                                     final Position position1,
+                                                                                     final Entity entity2,
+                                                                                     final Collider2D collider2,
+                                                                                     final Position position2)
+    {
+        final var one = new CollisionDetectionData(entity1, collider1, position1);
+        final var two = new CollisionDetectionData(entity2, collider2, position2);
+
+        if (entity1.id() < entity2.id())
+        {
+            return new Row2<>(
+                    one,
+                    two
+            );
+        }
+
+        return new Row2<>(
+                two,
+                one
+        );
+    }
+
+    private PVector centre(final Position position, final int width, final int height)
+    {
+        // Might need to be a negative for height
+        return new PVector(position.x + (float) width / 2, position.y + (float) height / 2);
+    }
+
+    private boolean isColliding(final Collider2D collider1, final Position position1, final Collider2D collider2, final Position position2)
+    {
+        return rectanglesIntersect(position1, collider1.width, collider1.height, position2, collider2.width, collider2.height);
     }
 
     public static boolean rectanglesIntersect(final PVector firstTopLeft, final float firstWidth, final float firstHeight,
