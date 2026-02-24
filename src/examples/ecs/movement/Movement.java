@@ -37,7 +37,7 @@ public class Movement extends Pelm<Model, Message>
     }
 
     private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
-    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 15, PhysicsUpdate::new);
+    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 150, PhysicsUpdate::new);
     private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
 

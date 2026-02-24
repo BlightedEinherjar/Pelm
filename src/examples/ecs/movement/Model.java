@@ -11,6 +11,7 @@ import entity_component_system.query.*;
 import entity_component_system.sprite.Sprite;
 import entity_component_system.sprite.TextureAtlas;
 import entity_component_system.sprite.TextureAtlasLayout;
+import org.jetbrains.annotations.NotNull;
 import processing.core.PApplet;
 import processing.core.PImage;
 import processing.core.PVector;
@@ -57,8 +58,6 @@ public class Model
 
             row.b().x = 0;
             row.b().y = 0;
-
-            System.out.println(row.b());
         });
 
     }
@@ -168,15 +167,16 @@ public class Model
         draw.drawContext().push();
 
         draw.drawContext().noFill();
+        draw.drawContext().stroke(0, 0, 255f);
 
         for (final var row : query)
         {
             final var position = row.a();
             final var collider = row.b();
 
-            final PVector centre = centre(position, collider.width, collider.height);
+            final PVector centre = centreFromCollider(position, collider);
 
-            draw.drawContext().stroke(0, 0, 255f);
+            System.out.println(new Row2<>(centre, position));
 
             draw.drawContext().point(centre.x, centre.y);
 
@@ -184,6 +184,12 @@ public class Model
         }
 
         draw.drawContext().pop();
+    }
+
+    @NotNull
+    private PVector centreFromCollider(final Position position, final Collider2D collider)
+    {
+        return centre(position.copy().add(collider.offset), collider.width, collider.height);
     }
 
     private void drawShapes(final Draw draw, final Commands commands, final Query2<Position, Shape> query)
@@ -340,8 +346,6 @@ public class Model
                 final var entity1 = row1.c();
                 final var entity2 = row2.c();
 
-                System.out.println(new Row2<>(entity1, entity2));
-
                 if (entity1.equals(entity2))
                 {
                     return;
@@ -358,8 +362,6 @@ public class Model
 
                     final var leftToRight = getLeftToRight(right, left);
 
-                    System.out.printf("Collision detected: left=%s, right=%s with vector=%s\n", left, right, leftToRight);
-
                     this.hitMessageWriter.send(new Hit(left.entity(), right.entity(), leftToRight));
                 }
             });
@@ -368,15 +370,9 @@ public class Model
 
     private PVector getLeftToRight(final CollisionDetectionData right, final CollisionDetectionData left)
     {
-        final var rightCentre = centre(
-                right.position().copy().add(right.collider().offset),
-                right.collider().width,
-                right.collider().height);
+        final var rightCentre = centreFromCollider(right.position(), right.collider());
 
-        final var leftCentre = centre(
-                left.position().copy().add(left.collider().offset),
-                left.collider().width,
-                left.collider().height);
+        final var leftCentre = centreFromCollider(left.position(), left.collider());
 
         return rightCentre.sub(leftCentre);
     }
