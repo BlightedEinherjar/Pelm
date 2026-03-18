@@ -33,6 +33,8 @@ public class Movement extends Pelm<Model, Message>
     {
         model.setup();
 
+
+
         this.drawContext = createGraphics(480, 270);
     }
 

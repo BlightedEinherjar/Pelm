@@ -137,24 +137,14 @@ public class Model
 
         entityComponentSystem.spawn(player.build());
 
-        final var box = EntityBuilder.create()
-                .with(new Collider2D(100, 10, new PVector(0, 0)))
-                .with(new Rectangle(100, 10, Color.red))
-                .with(new Drawable())
-                .with(new Position(10f, 100f))
-                .with(new Force(0f, 0f));
+        final var box = rectangleBuilder(100, 10, 10, 100, Color.red);
 
-//        final var box2 = EntityBuilder.create()
-//                .with(new Collider2D(10, 100, new PVector(0, 0)))
-//                .with(new Rectangle(10, 100, Color.red))
-//                .with(new Drawable())
-//                .with(new Position(300f, 150f))
-//                .with(new Force(0f, 0f));
-//
+        final var box2 = rectangleBuilder(100, 30, 150, 90, Color.blue);
+
 
 
         entityComponentSystem.spawn(box.build());
-//        entityComponentSystem.spawn(box2.build());
+        entityComponentSystem.spawn(box2.build());
 
         entityComponentSystem
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
@@ -168,6 +158,15 @@ public class Model
             .registerSystem(PhysicsUpdate.class, this::detectCollisions, Queries.query(Collider2D.class, Position.class, Entity.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+    }
+
+    private static EntityBuilder rectangleBuilder(final int width, final int height, final int x, final int y, final Color colour)
+    {
+        return EntityBuilder.create()
+                .with(new Collider2D(width, height, new PVector(0, 0)))
+                .with(new Rectangle(width, height, colour))
+                .with(new Drawable())
+                .with(new Position(x, y));
     }
 
     private void drawColliders(final Draw draw, final Commands commands, final Query2<Position, Collider2D> query)
