@@ -141,12 +141,20 @@ public class Model
                 .with(new Collider2D(100, 10, new PVector(0, 0)))
                 .with(new Rectangle(100, 10, Color.red))
                 .with(new Drawable())
-                .with(new Position(-10f, 100f))
+                .with(new Position(10f, 100f))
                 .with(new Force(0f, 0f));
 
+//        final var box2 = EntityBuilder.create()
+//                .with(new Collider2D(10, 100, new PVector(0, 0)))
+//                .with(new Rectangle(10, 100, Color.red))
+//                .with(new Drawable())
+//                .with(new Position(300f, 150f))
+//                .with(new Force(0f, 0f));
+//
 
 
         entityComponentSystem.spawn(box.build());
+//        entityComponentSystem.spawn(box2.build());
 
         entityComponentSystem
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
@@ -175,8 +183,6 @@ public class Model
             final var collider = row.b();
 
             final PVector centre = centreFromCollider(position, collider);
-
-//            System.out.println(new Row2<>(centre, position));
 
             draw.drawContext().point(centre.x, centre.y);
 
@@ -210,8 +216,6 @@ public class Model
 
     public void applyCollisions(final PhysicsUpdate message, final Commands commands)
     {
-//        final var hits = hitMessageReader.read().collect(Collectors.toSet());
-
         final var statics = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
 
         final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class));
@@ -249,11 +253,11 @@ public class Model
                 final var exitTimeY = nonStaticVelocity.y == 0 ? Float.POSITIVE_INFINITY : exitY / nonStaticVelocity.y;
 
                 final var entry = Math.max(entryTimeX, entryTimeY);
-                final var exit  = Math.max(exitTimeX, exitTimeY);
+                final var exit  = Math.min(exitTimeX, exitTimeY);
 
                 if (entry > exit || entry < 0.0f || entry > 1.0f)
                 {
-                    return;
+                    continue;
                 }
 
                 final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
