@@ -17,12 +17,12 @@ import processing.core.PImage;
 import processing.core.PVector;
 import utils.IVec2;
 import utils.row.Row2;
+import utils.row.Row4;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 // I dreamt this already worked...
@@ -176,7 +176,7 @@ public class Model
 
             final PVector centre = centreFromCollider(position, collider);
 
-            System.out.println(new Row2<>(centre, position));
+//            System.out.println(new Row2<>(centre, position));
 
             draw.drawContext().point(centre.x, centre.y);
 
@@ -203,38 +203,6 @@ public class Model
         }
     }
 
-//    private static void applyCollisions(final PhysicsUpdate msg, final Commands commands, final Query4<Collider2D, Position, Velocity, Entity> query)
-//    {
-//        for (final var row1 : query)
-//        {
-//            for (final var row2 : query)
-//            {
-//                final var leftEntity = row1.d();
-//                final var rightEntity = row2.d();
-//
-//                if (leftEntity.equals(rightEntity))
-//                {
-//                    continue;
-//                }
-//
-//                final var leftCollider = row1.a();
-//                final var rightCollider = row2.a();
-//
-//                final var leftPosition = row1.b();
-//                final var rightPosition = row2.b();
-//
-//                final var leftVelocity = row1.c();
-//                final var rightVelocity = row2.c();
-//
-//                if (rectanglesIntersect(leftPosition, leftCollider.width, leftCollider.height, rightPosition, rightCollider.width, rightCollider.height))
-//                {
-//                    leftVelocity.y = -1f;
-//                    break;
-//                }
-//            }
-//        }
-//    }
-
     public static <T> T id(final T value)
     {
         return value;
@@ -242,41 +210,167 @@ public class Model
 
     public void applyCollisions(final PhysicsUpdate message, final Commands commands)
     {
-        final var hits = hitMessageReader.read().collect(Collectors.toMap(x -> new Row2<>(x.left(), x.right()), Hit::leftToRight));
+//        final var hits = hitMessageReader.read().collect(Collectors.toSet());
 
-        final var statics = commands.query(Queries.query(Entity.class).without(Velocity.class));
+        final var statics = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
 
-        final var nonStatics = commands.query(Queries.query(Velocity.class, Entity.class));
+        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class));
 
-        for (final var nonStaticRow1 : nonStatics)
+        for (final var nonStaticRow : nonStatics)
         {
             for (final var staticsRow : statics)
             {
-                if (nonStaticRow1.b().id() < staticsRow.id())
+                final var staticCollider = staticsRow.a();
+                final var staticPosition = staticsRow.b();
+
+                final var nonStaticCollider = nonStaticRow.a();
+                final var nonStaticPosition = nonStaticRow.b();
+                final var nonStaticVelocity = nonStaticRow.c();
+
+                final var staticCoordinates = rectangleCoordinates(staticPosition, staticCollider);
+                final var nonStaticCoordinates = rectangleCoordinates(nonStaticPosition, nonStaticCollider);
+
+                final var right = nonStaticVelocity.x > 0;
+                final var down = nonStaticVelocity.y > 0;
+
+                final var entryExitX = getDistancesX(right, staticCoordinates, nonStaticCoordinates);
+                final var entryExitY = getDistancesY(down, staticCoordinates, nonStaticCoordinates);
+
+                final var entryX = entryExitX.a();
+                final var entryY = entryExitY.a();
+
+                final var exitX = entryExitX.b();
+                final var exitY = entryExitY.b();
+
+                final var entryTimeX = nonStaticVelocity.x == 0 ? Float.NEGATIVE_INFINITY : entryX / nonStaticVelocity.x;
+                final var entryTimeY = nonStaticVelocity.y == 0 ? Float.NEGATIVE_INFINITY : entryY / nonStaticVelocity.y;
+
+                final var exitTimeX = nonStaticVelocity.x == 0 ? Float.POSITIVE_INFINITY : exitX / nonStaticVelocity.x;
+                final var exitTimeY = nonStaticVelocity.y == 0 ? Float.POSITIVE_INFINITY : exitY / nonStaticVelocity.y;
+
+                final var entry = Math.max(entryTimeX, entryTimeY);
+                final var exit  = Math.max(exitTimeX, exitTimeY);
+
+                if (entry > exit || entry < 0.0f || entry > 1.0f)
                 {
-                    final var key = new Row2<>(nonStaticRow1.b(), staticsRow);
-
-                    if (hits.containsKey(key))
-                    {
-                        final var nonStaticToStaticVector = hits.get(key);
-
-                        nonStaticRow1.a().add(nonStaticToStaticVector.copy().mult(-1 * MoveAwayFactor));
-                    }
+                    return;
                 }
 
-                if (staticsRow.id() < nonStaticRow1.b().id())
-                {
-                    final var key = new Row2<>(staticsRow, nonStaticRow1.b());
+                final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
-                    if (hits.containsKey(key))
-                    {
-                        final var staticToNonStaticVector = hits.get(key);
+                nonStaticPosition.add(nonStaticVelocity.copy().mult(entry));
 
-                        nonStaticRow1.a().add(staticToNonStaticVector.copy().mult(MoveAwayFactor));
-                    }
-                }
+                final var dot = nonStaticVelocity.dot(normal);
+
+                // Contact points would be good.
+                nonStaticVelocity.sub(normal.mult(dot));
             }
         }
+    }
+
+    private PVector hadamardProduct(final PVector a, final PVector b)
+    {
+        return new PVector(a.x * b.x, a.y * b.y, a.z * b.z);
+    }
+
+    private static PVector getSweptAABBNormal(final Float entryX, final Float entryY, final boolean right, final boolean down)
+    {
+        final var normal = new PVector(0, 0);
+
+        if (entryX > entryY)
+        {
+            if (right)
+            {
+                normal.x = -1;
+
+                return normal;
+            }
+
+            normal.x = 1;
+
+            return normal;
+        }
+
+        if (down)
+        {
+            normal.y = -1;
+
+            return normal;
+        }
+
+        normal.y = 1;
+
+        return normal;
+    }
+
+    private Row2<PVector, Float> getSweptAABBCollisionNormalAndEntryTime(final boolean right, final boolean down, final float entryX, final float entryY)
+    {
+        System.out.println(new Row2<>(entryX, entryY));
+
+        if (Float.isFinite(entryX) && entryX > entryY)
+        {
+            if (entryX >= 1.0f || entryX <= 0.0f)
+            {
+                return new Row2<>(Direction.None.vector, 0.0f);
+            }
+
+            if (right)
+            {
+                return new Row2<>(Direction.Left.vector, entryX);
+            }
+
+            return new Row2<>(Direction.Right.vector, entryX);
+        }
+
+        if (Float.isInfinite(entryY) && (entryY >= 1.0f || entryY <= 0.0f))
+        {
+            return new Row2<>(Direction.None.vector, 0.0f);
+        }
+
+        if (down)
+        {
+            return new Row2<>(Direction.Up.vector, entryY);
+        }
+
+        return new Row2<>(Direction.Down.vector, entryY);
+    }
+
+    private static Row2<Float, Float> getDistancesX(final boolean movingRight, final RectangleCoordinates staticCoordinates, final RectangleCoordinates nonStaticCoordinates)
+    {
+        final float rightLeft = staticCoordinates.topRight().x - nonStaticCoordinates.topLeft().x;
+        final float leftRight = staticCoordinates.topLeft().x - nonStaticCoordinates.topRight().x;
+
+        if (movingRight)
+        {
+            return new Row2<>(leftRight, rightLeft);
+        }
+
+        return new Row2<>(rightLeft, leftRight);
+    }
+
+    private static Row2<Float, Float> getDistancesY(final boolean movingDown, final RectangleCoordinates staticCoordinates, final RectangleCoordinates nonStaticCoordinates)
+    {
+        final float topBottom = staticCoordinates.topLeft().y - nonStaticCoordinates.bottomLeft().y;
+        final float bottomTop = staticCoordinates.bottomLeft().y - nonStaticCoordinates.topRight().y;
+
+        if (movingDown)
+        {
+            return new Row2<>(topBottom, bottomTop);
+        }
+
+        return new Row2<>(bottomTop, topBottom);
+    }
+
+    private RectangleCoordinates rectangleCoordinates(final Position position, final Collider2D collider)
+    {
+        final var offsetPosition = position.copy().add(collider.offset);
+
+        return new RectangleCoordinates(
+                offsetPosition.copy(),
+                offsetPosition.copy().add(collider.width, 0),
+                offsetPosition.copy().add(0, collider.height),
+                offsetPosition.copy().add(collider.width, collider.height)
+        );
     }
 
     private static EntityBuilder playerBuilder(final Handle<PImage> idleTexture, final TextureAtlasLayout layout)
@@ -362,7 +456,7 @@ public class Model
 
                     final var leftToRight = getLeftToRight(right, left);
 
-                    this.hitMessageWriter.send(new Hit(left.entity(), right.entity(), leftToRight));
+                    this.hitMessageWriter.send(new Hit(left, right));
                 }
             });
         }

@@ -5,7 +5,7 @@ import processing.core.PVector;
 
 import java.util.Objects;
 
-public record Hit(Entity left, Entity right, PVector leftToRight)
+public record Hit(CollisionDetectionData left, CollisionDetectionData right)
 {
     @Override
     public boolean equals(final Object o) {
