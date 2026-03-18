@@ -15,20 +15,25 @@ import org.jetbrains.annotations.NotNull;
 import processing.core.PApplet;
 import processing.core.PImage;
 import processing.core.PVector;
+import processing.sound.SoundFile;
 import utils.IVec2;
 import utils.row.Row2;
 import utils.row.Row4;
+import utils.row.Row6;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.util.HashSet;
-import java.util.Set;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.util.*;
+import java.util.List;
 import java.util.stream.StreamSupport;
 
 // I dreamt this already worked...
 public class Model
 {
     public static final float MoveAwayFactor = 0.1f;
+    public static final String MusicPath = "examples\\ecs\\examples\\movement\\EricSkiff-ResistorAnthems2021\\EricSkiff-ResistorAnthems2018\\Resistor Anthems";
     public final MessageManager messageManager = new MessageManager();
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
@@ -36,6 +41,8 @@ public class Model
     public final Messages<Hit> hitMessages = messageManager.access(Hit.class);
     public final MessageWriter<Hit> hitMessageWriter = hitMessages.createWriter();
     public final MessageReader<Hit> hitMessageReader = hitMessages.createReader();
+    public final List<Handle<SoundFile>> music = new ArrayList<>();
+    public int currentlyPlaying = 0;
 
     public Model(final AssetServer assetServer)
     {
@@ -111,6 +118,8 @@ public class Model
 
             if (groundState.grounded)
             {
+                System.out.println("Grounded!");
+
                 force.y += keyForce.y;
             }
         }
@@ -127,9 +136,16 @@ public class Model
         }
     }
 
-    public void setup()
+    public void setup(final PApplet applet)
     {
         final Handle<PImage> idleTexture = assetServer.loadImage(Slime1Animation.Idle.path);
+
+        final var folder = new File(applet.dataPath(MusicPath));
+
+        Arrays
+                .stream(Objects.requireNonNull(folder.listFiles((_, name) -> name.endsWith(".mp3"))))
+                .map(file -> assetServer.loadWith(SoundFile.class, path -> new SoundFile(applet, path), MusicPath + "\\" + file.getName()))
+                .forEach(this.music::add);
 
         final var layout = new TextureAtlasLayout(new IVec2(64, 64), 6, 4);
 
@@ -251,17 +267,19 @@ public class Model
                 final var exitTimeX = nonStaticVelocity.x == 0 ? Float.POSITIVE_INFINITY : exitX / nonStaticVelocity.x;
                 final var exitTimeY = nonStaticVelocity.y == 0 ? Float.POSITIVE_INFINITY : exitY / nonStaticVelocity.y;
 
-                final var entry = Math.max(entryTimeX, entryTimeY);
-                final var exit  = Math.min(exitTimeX, exitTimeY);
+                final var entryTime = Math.max(entryTimeX, entryTimeY);
+                final var exitTime  = Math.min(exitTimeX, exitTimeY);
 
-                if (entry > exit || entry < 0.0f || entry > 1.0f)
+                if (entryTime > exitTime || entryTime < 0.0f || entryTime > 1.0f)
                 {
                     continue;
                 }
 
+                System.out.println(new Row6<>(entryTime, exitTime, entryTimeX, entryTimeY, exitTimeX, exitTimeY));
+
                 final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
-                nonStaticPosition.add(nonStaticVelocity.copy().mult(entry));
+                nonStaticPosition.add(nonStaticVelocity.copy().mult(entryTime));
 
                 final var dot = nonStaticVelocity.dot(normal);
 

@@ -5,6 +5,7 @@ import processing.core.PApplet;
 import processing.core.PImage;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 // Currently no resources system, might not implement one as it is not really necessary in Java.
@@ -55,6 +56,19 @@ public class AssetServer
             }
 
             return new EmptyHandle<>();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Handle<T> loadWith(final Class<T> type, final Function<String, T> func, final String dataPath)
+    {
+        return (Handle<T>) handleMap.computeIfAbsent(dataPath, _ ->
+        {
+            final LazyHandle<T> handle = new LazyHandle<>(() -> func.apply(dataPath));
+
+            handleListMap.computeIfAbsent(type, _ -> new ArrayList<>()).add(handle);
+
+            return handle;
         });
     }
 

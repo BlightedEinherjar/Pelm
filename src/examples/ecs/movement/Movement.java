@@ -8,6 +8,8 @@ import pelm.subscription.FunctionSubscription;
 import pelm.subscription.TimerSubscription;
 import processing.core.PGraphics;
 import processing.event.KeyEvent;
+import processing.sound.Sound;
+import processing.sound.SoundFile;
 
 import java.util.stream.Stream;
 
@@ -31,9 +33,7 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected void onSetup()
     {
-        model.setup();
-
-
+        model.setup(this);
 
         this.drawContext = createGraphics(480, 270);
     }
@@ -52,6 +52,14 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected void view(final Model model)
     {
+//        if (!model.music.get(model.currentlyPlaying).get().isPlaying())
+//        {
+//            // Maybe double check this is not set to the same twice.
+//            model.currentlyPlaying = (int) random(0.0f, model.music.size());
+//
+//            model.music.get(model.currentlyPlaying).get().play();
+//        }
+
         drawContext.beginDraw();
 
         drawContext.background(127, 255, 3);
