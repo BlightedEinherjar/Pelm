@@ -42,6 +42,7 @@ public class Movement extends Pelm<Model, Message>
 
     private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
     private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 15, PhysicsUpdate::new);
+    private final TimerSubscription<Message> spawnBoxesTimer = new TimerSubscription<>(millis(), 1500, SpawnBoxes::new);
     private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
     private final FunctionSubscription<MouseEvent, Message> mouseClickedSubscription = FunctionSubscription.create(SubscriptionCategory.MousePressed, MousePressedEvent::new);
@@ -56,7 +57,8 @@ public class Movement extends Pelm<Model, Message>
                 keyPressSubscription,
                 keyReleaseSubscription,
                 mouseClickedSubscription,
-                mouseReleasedSubscription);
+                mouseReleasedSubscription,
+                spawnBoxesTimer);
     }
 
     @Override
@@ -71,6 +73,8 @@ public class Movement extends Pelm<Model, Message>
 //        }
 
         drawContext.beginDraw();
+
+        drawContext.translate(0, model.scrollDegree);
 
         drawContext.background(127, 255, 3);
 

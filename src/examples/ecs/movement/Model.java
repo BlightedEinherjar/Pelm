@@ -44,6 +44,7 @@ public class Model
     public final List<Handle<SoundFile>> music = new ArrayList<>();
     public Row2<Float, Float> renderRatios;
     public int currentlyPlaying = 0;
+    public float scrollDegree = 0f;
 
     public Model(final AssetServer assetServer)
     {
@@ -75,7 +76,7 @@ public class Model
         }
     }
 
-    private static void applyGravity(final PhysicsUpdate msg, final Commands commands, final Query3<Force, Mass, ContactDirections> query)
+    private static void applyGravity(final PhysicsUpdate msg, final Commands commands, final Query3<Force, Mass, JumpContext> query)
     {
         for (final var row : query)
         {
@@ -90,7 +91,7 @@ public class Model
 
     private void applyDirectionPressed(final PhysicsUpdate msg, final Commands commands)
     {
-        final var query = commands.query(Queries.query(Force.class, ContactDirections.class, Velocity.class, Grapple.class).with(Player.class));
+        final var query = commands.query(Queries.query(Force.class, JumpContext.class, Velocity.class, Grapple.class).with(Player.class));
 
         final var keyForce = new Force(0, 0);
 
@@ -120,9 +121,8 @@ public class Model
 
             force.x += keyForce.x;
 
-            if (contactPoints.grounded() || contactPoints.coyoteFrameCounter++ < 5)
+            if (contactPoints.grounded(keyForce.x))
             {
-                System.out.println("Jumptin!");
                 // Impulse!!
                 velocity.y = keyForce.y * 15;
                 if (Math.abs(keyForce.y) > 0)
@@ -190,17 +190,82 @@ public class Model
             .registerSystem(Draw.class, this::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
             .registerSystem(Draw.class, this::drawGrapple)
+            .registerSystem(SpawnBoxes.class, this::spawnBoxes)
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
             .registerSystem(MousePressedEvent.class, this::handleClick)
-            .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class, ContactDirections.class))
+            .registerSystem(PhysicsUpdate.class, this::updateScroll)
+            .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class, JumpContext.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
+            .registerSystem(PhysicsUpdate.class, this::applyWallFriction)
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
             .registerSystem(PhysicsUpdate.class, this::applyGrappleForce)
-            .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class, ContactDirections.class))
+            .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class, JumpContext.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
-            .registerSystem(PhysicsUpdate.class, Model::lowerAll)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+    }
+
+    private void applyWallFriction(final PhysicsUpdate update, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(JumpContext.class, Force.class, Velocity.class));
+
+        for (final var row : query)
+        {
+            final var jumpContext = row.a();
+            final var force = row.b();
+            final var velocity = row.c();
+
+            for (final var contactDirection : jumpContext.contactDirections)
+            {
+                if (Math.abs(contactDirection.x) > 0)
+                {
+                    final float drag = DragCoefficients.AbsoluteScalar.value * (DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude()) * 6;
+
+                    force.x -= velocity.x * drag;
+
+                    if (velocity.y > 0)
+                        force.y -= velocity.y * drag;
+
+                    force.x -= contactDirection.x * 0.60f;
+
+                    break;
+                }
+            }
+        }
+    }
+
+    private void updateScroll(final PhysicsUpdate update, final Commands commands)
+    {
+        scrollDegree += 0.1f;
+    }
+
+    private void spawnBoxes(final SpawnBoxes spawnBoxes, final Commands commands)
+    {
+        final var query = commands.query(BoxQuery);
+
+        for (final var row : query)
+        {
+            if (!row.d().free) continue;
+
+            final var collider = row.a();
+            final var rectangle = row.b();
+            final var position = row.c();
+            final var isFree = row.d();
+
+            collider.width = (int) (Math.random() * 200);
+            collider.height = (int) (Math.random() * 100);
+
+            rectangle.color = new Color((float) Math.random(), (float) Math.random(), (float) Math.random());
+            rectangle.width = collider.width;
+            rectangle.height = collider.height;
+
+            position.y = -scrollDegree - collider.height;
+            position.x = (float) (Math.random() * (Movement.RenderSize.b() + collider.width) - collider.width);
+
+            isFree.free = false;
+
+            break;
+        }
     }
 
     private static void lowerAll(final PhysicsUpdate update, final Commands commands)
@@ -316,7 +381,7 @@ public class Model
 
     public PVector fromScreenSpace(final PVector v)
     {
-        return new PVector(v.x * renderRatios.a(), v.y * renderRatios.b());
+        return new PVector(v.x * renderRatios.a(), v.y * renderRatios.b() - scrollDegree);
     }
 
     public static Optional<PVector> horizontalIntersection(final PVector from, final PVector direction, final float lineY, final float leftX, final float rightX)
@@ -387,8 +452,6 @@ public class Model
 
         for (final var row : query)
         {
-            System.out.println("Here!");
-            System.out.println(System.identityHashCode(row));
             row.state = new Grapple.IdleGrapple();
         }
     }
@@ -489,6 +552,8 @@ public class Model
 
     }
 
+    public static final Queries.Query4Specification<Collider2D, Rectangle, Position, IsFree> BoxQuery = Queries.query(Collider2D.class, Rectangle.class, Position.class, IsFree.class).with(Drawable.class);
+
     private void drawColliders(final Draw draw, final Commands commands, final Query2<Position, Collider2D> query)
     {
         draw.drawContext().push();
@@ -537,7 +602,7 @@ public class Model
     {
         final var statics = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
 
-        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, ContactDirections.class));
+        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, JumpContext.class));
 
         for (final var nonStaticRow : nonStatics)
         {
@@ -608,7 +673,6 @@ public class Model
             nonStaticVelocity.sub(velocitySubtractionAccumulator);
 //            nonStaticPosition.add(positionAdditionAccumulator);
 
-            System.out.println(nonStaticRow.d().contactDirections);
         }
     }
 
@@ -732,7 +796,7 @@ public class Model
                 .with(new Drawable())
                 .with(new Player())
                 .with(new Collider2D(16, 16, new PVector(24, 24)))
-                .with(new ContactDirections())
+                .with(new JumpContext())
                 .with(new Mass(1))
                 .with(new Grapple(new Grapple.IdleGrapple()));
     }
@@ -756,7 +820,7 @@ public class Model
         return along.copy().mult(x.dot(along) / along.dot(along));
     }
 
-    private static void applyForce(final PhysicsUpdate message, final Commands commands, final Query4<Force, Velocity, Mass, ContactDirections> query)
+    private static void applyForce(final PhysicsUpdate message, final Commands commands, final Query4<Force, Velocity, Mass, JumpContext> query)
     {
         for (final var row : query)
         {
