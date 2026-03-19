@@ -75,12 +75,14 @@ public class Model
         }
     }
 
-    private static void applyGravity(final PhysicsUpdate msg, final Commands commands, final Query2<Force, Mass> query)
+    private static void applyGravity(final PhysicsUpdate msg, final Commands commands, final Query3<Force, Mass, ContactDirections> query)
     {
         for (final var row : query)
         {
             final var force = row.a();
             final var mass = row.b();
+
+//            if (row.c().grounded()) continue;
 
             force.y += 9.8f / 25 * mass.mass;
         }
@@ -88,7 +90,7 @@ public class Model
 
     private void applyDirectionPressed(final PhysicsUpdate msg, final Commands commands)
     {
-        final var query = commands.query(Queries.query(Force.class, GroundedState.class, Velocity.class, Grapple.class).with(Player.class));
+        final var query = commands.query(Queries.query(Force.class, ContactDirections.class, Velocity.class, Grapple.class).with(Player.class));
 
         final var keyForce = new Force(0, 0);
 
@@ -112,16 +114,21 @@ public class Model
         for (final var row : query)
         {
             final var force = row.a();
-            final var groundState = row.b();
+            final var contactPoints = row.b();
             final var velocity = row.c();
             final var grapple = row.d();
 
             force.x += keyForce.x;
 
-            if (groundState.grounded)
+            if (contactPoints.grounded() || contactPoints.coyoteFrameCounter++ < 5)
             {
+                System.out.println("Jumptin!");
                 // Impulse!!
                 velocity.y = keyForce.y * 15;
+                if (Math.abs(keyForce.y) > 0)
+                {
+                    contactPoints.coyoteFrameCounter = 5;
+                }
             }
 
             if (grapple.state instanceof final Grapple.AttachedGrapple attachedGrapple)
@@ -186,14 +193,14 @@ public class Model
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
             .registerSystem(MousePressedEvent.class, this::handleClick)
-            .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class))
+            .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class, ContactDirections.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
             .registerSystem(PhysicsUpdate.class, this::applyGrappleForce)
-            .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
+            .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class, ContactDirections.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
+            .registerSystem(PhysicsUpdate.class, Model::lowerAll)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
-//            .registerSystem(PhysicsUpdate.class, Model::lowerAll);
     }
 
     private static void lowerAll(final PhysicsUpdate update, final Commands commands)
@@ -201,7 +208,7 @@ public class Model
         commands.query(Queries.query(Position.class).without(Player.class)).forEach(x -> x.y += 0.1f);
         commands.query(Queries.query(Grapple.class)).forEach(x ->
         {
-            if (x.state instanceof Grapple.AttachedGrapple g)
+            if (x.state instanceof final Grapple.AttachedGrapple g)
             {
                 g.attachmentPosition.y += 0.1f;
             }
@@ -530,23 +537,26 @@ public class Model
     {
         final var statics = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
 
-        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, GroundedState.class));
+        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, ContactDirections.class));
 
         for (final var nonStaticRow : nonStatics)
         {
-            nonStaticRow.d().grounded = false;
+            nonStaticRow.d().contactDirections.clear();
+            final var velocitySubtractionAccumulator = new PVector();
+            final var positionAdditionAccumulator = new PVector();
+
+            final var nonStaticCollider = nonStaticRow.a();
+            final var nonStaticPosition = nonStaticRow.b();
+            final var nonStaticVelocity = nonStaticRow.c();
+
+            final var nonStaticCoordinates = rectangleCoordinates(nonStaticPosition, nonStaticCollider);
 
             for (final var staticsRow : statics)
             {
                 final var staticCollider = staticsRow.a();
                 final var staticPosition = staticsRow.b();
 
-                final var nonStaticCollider = nonStaticRow.a();
-                final var nonStaticPosition = nonStaticRow.b();
-                final var nonStaticVelocity = nonStaticRow.c();
-
                 final var staticCoordinates = rectangleCoordinates(staticPosition, staticCollider);
-                final var nonStaticCoordinates = rectangleCoordinates(nonStaticPosition, nonStaticCollider);
 
                 final var right = nonStaticVelocity.x > 0;
                 final var down = nonStaticVelocity.y > 0;
@@ -586,15 +596,19 @@ public class Model
 
                 final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
-                nonStaticPosition.add(nonStaticVelocity.copy().mult(entryTime));
+                positionAdditionAccumulator.add(nonStaticVelocity.copy().mult(entryTime));
 
                 final var dot = nonStaticVelocity.dot(normal);
 
-                nonStaticVelocity.sub(normal.mult(dot));
+                velocitySubtractionAccumulator.add(normal.copy().mult(dot));
 
-                if (normal.y > 0)
-                    nonStaticRow.d().grounded = true;
+                nonStaticRow.d().contactDirections.add(normal);
             }
+
+            nonStaticVelocity.sub(velocitySubtractionAccumulator);
+//            nonStaticPosition.add(positionAdditionAccumulator);
+
+            System.out.println(nonStaticRow.d().contactDirections);
         }
     }
 
@@ -718,7 +732,7 @@ public class Model
                 .with(new Drawable())
                 .with(new Player())
                 .with(new Collider2D(16, 16, new PVector(24, 24)))
-                .with(new GroundedState(false))
+                .with(new ContactDirections())
                 .with(new Mass(1))
                 .with(new Grapple(new Grapple.IdleGrapple()));
     }
@@ -737,13 +751,24 @@ public class Model
         }
     }
 
-    private static void applyForce(final PhysicsUpdate message, final Commands commands, final Query3<Force, Velocity, Mass> query)
+    public static PVector project(final PVector x, final PVector along)
+    {
+        return along.copy().mult(x.dot(along) / along.dot(along));
+    }
+
+    private static void applyForce(final PhysicsUpdate message, final Commands commands, final Query4<Force, Velocity, Mass, ContactDirections> query)
     {
         for (final var row : query)
         {
             final var force = row.a();
             final var velocity = row.b();
             final var mass = row.c();
+            final var contactDirections = row.d();
+
+            for (final var contactDirection : contactDirections.contactDirections)
+            {
+//                force.sub(project())
+            }
 
             final var acceleration = new PVector(force.x / mass.mass, force.y / mass.mass);
 

@@ -1,8 +1,10 @@
 import entity_component_system.query.MessageManager;
 import entity_component_system.query.MessageReader;
 import entity_component_system.query.MessageWriter;
+import examples.ecs.movement.Model;
 import examples.ecs.movement.Movement;
 import processing.core.PApplet;
+import processing.core.PVector;
 
 import java.util.stream.IntStream;
 
