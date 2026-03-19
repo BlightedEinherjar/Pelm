@@ -59,17 +59,11 @@ public class Model
 
     private static void updatePosition(final PhysicsUpdate msg, final Commands commands, final Query2<Position, Velocity> query)
     {
-        query.forEach(row ->
+        for (final var row : query)
         {
             row.a().x += row.b().x;
             row.a().y += row.b().y;
-
-//            row.b().x = Math.clamp(row.b().x, -5, 5);
-//            row.b().y = Math.clamp(row.b().y, -5, 5);
-
-//            row.b().x = 0;
-//            row.b().y = 0;
-        });
+        }
 
     }
 
@@ -175,14 +169,14 @@ public class Model
 
         entityComponentSystem.spawn(player.build());
 
-        final var box = rectangleBuilder(100, 10, 10, 100, Color.red);
+        for (int i = 0; i < 100; i++)
+        {
+            freeBoxBuilder().spawn(entityComponentSystem);
+        }
 
-        final var box2 = rectangleBuilder(100, 30, 150, 90, Color.blue);
-
-
-
-        entityComponentSystem.spawn(box.build());
-        entityComponentSystem.spawn(box2.build());
+        boxBuilder(100, 10, 30, 100, Color.red).spawn(entityComponentSystem);
+        boxBuilder(10, 100, 100, 30, Color.black).spawn(entityComponentSystem);
+        boxBuilder(100, 10, 30, 130, Color.blue).spawn(entityComponentSystem);
 
         entityComponentSystem
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
@@ -199,6 +193,19 @@ public class Model
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+//            .registerSystem(PhysicsUpdate.class, Model::lowerAll);
+    }
+
+    private static void lowerAll(final PhysicsUpdate update, final Commands commands)
+    {
+        commands.query(Queries.query(Position.class).without(Player.class)).forEach(x -> x.y += 0.1f);
+        commands.query(Queries.query(Grapple.class)).forEach(x ->
+        {
+            if (x.state instanceof Grapple.AttachedGrapple g)
+            {
+                g.attachmentPosition.y += 0.1f;
+            }
+        });
     }
 
     private void applyGrappleForce(final PhysicsUpdate update, final Commands commands)
@@ -452,6 +459,27 @@ public class Model
                 .with(new Rectangle(width, height, colour))
                 .with(new Drawable())
                 .with(new Position(x, y));
+    }
+
+    public static EntityBuilder freeBoxBuilder()
+    {
+        return EntityBuilder.create()
+                .with(new Collider2D(0, 0, new PVector(0, 0)))
+                .with(new Drawable())
+                .with(new Rectangle(0, 0, new Color(0, 0, 0, 0)))
+                .with(new Position(0, 0))
+                .with(new IsFree(true));
+    }
+
+    public static EntityBuilder boxBuilder(final int width, final int height, final int x, final int y, final Color colour)
+    {
+        return EntityBuilder.create()
+                .with(new Collider2D(width, height, new PVector(0, 0)))
+                .with(new Rectangle(width, height, colour))
+                .with(new Drawable())
+                .with(new Position(x, y))
+                .with(new IsFree(false));
+
     }
 
     private void drawColliders(final Draw draw, final Commands commands, final Query2<Position, Collider2D> query)
