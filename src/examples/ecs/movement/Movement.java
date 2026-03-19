@@ -5,16 +5,19 @@ import pelm.core.Subscription;
 import pelm.core.SubscriptionCategory;
 import pelm.subscription.ButtonPressedSubscription;
 import pelm.subscription.FunctionSubscription;
+import pelm.subscription.MouseClickedSubscription;
 import pelm.subscription.TimerSubscription;
 import processing.core.PGraphics;
 import processing.event.KeyEvent;
-import processing.sound.Sound;
-import processing.sound.SoundFile;
+import processing.event.MouseEvent;
+import utils.row.Row2;
 
 import java.util.stream.Stream;
 
 public class Movement extends Pelm<Model, Message>
 {
+    public static final Row2<Integer, Integer> RenderSize = new Row2<>(480, 270);
+
     private PGraphics drawContext;
 
     public Movement()
@@ -35,30 +38,38 @@ public class Movement extends Pelm<Model, Message>
     {
         model.setup(this);
 
-        this.drawContext = createGraphics(480, 270);
+        this.drawContext = createGraphics(RenderSize.a(), RenderSize.b());
     }
 
     private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
-    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 75, PhysicsUpdate::new);
+    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 15, PhysicsUpdate::new);
     private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
+    private final MouseClickedSubscription<Message> mouseClickedSubscription = new MouseClickedSubscription<>(MouseClickedEvent::new);
+    private final FunctionSubscription<MouseEvent, Message> mouseReleasedSubscription = FunctionSubscription.create(SubscriptionCategory.MouseReleased, MouseReleasedEvent::new);
 
     @Override
     protected Stream<? extends Subscription<Message>> subscriptions(final Model model)
     {
-        return Stream.of(updateSlimeFrameTimer, updatePhysicsTimer, keyPressSubscription, keyReleaseSubscription);
+        return Stream.of(
+                updateSlimeFrameTimer,
+                updatePhysicsTimer,
+                keyPressSubscription,
+                keyReleaseSubscription,
+                mouseClickedSubscription,
+                mouseReleasedSubscription);
     }
 
     @Override
     protected void view(final Model model)
     {
-//        if (!model.music.get(model.currentlyPlaying).get().isPlaying())
-//        {
-//            // Maybe double check this is not set to the same twice.
-//            model.currentlyPlaying = (int) random(0.0f, model.music.size());
-//
-//            model.music.get(model.currentlyPlaying).get().play();
-//        }
+        if (!model.music.get(model.currentlyPlaying).get().isPlaying())
+        {
+            // Maybe double check this is not set to the same twice.
+            model.currentlyPlaying = (int) random(0.0f, model.music.size());
+
+            model.music.get(model.currentlyPlaying).get().play();
+        }
 
         drawContext.beginDraw();
 

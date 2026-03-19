@@ -2,7 +2,7 @@ package examples.ecs.movement;
 
 public enum DragCoefficients
 {
-    K1(1.0f), K2(0.5f);
+    K1(1.0f), K2(0.5f), AbsoluteScalar(0.05f);
 
     public final float value;
 

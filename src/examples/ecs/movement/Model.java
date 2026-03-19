@@ -17,23 +17,24 @@ import processing.core.PImage;
 import processing.core.PVector;
 import processing.sound.SoundFile;
 import utils.IVec2;
-import utils.row.Row2;
-import utils.row.Row4;
-import utils.row.Row6;
+import utils.row.*;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 // I dreamt this already worked...
+@SuppressWarnings("DuplicatedCode")
 public class Model
 {
     public static final float MoveAwayFactor = 0.1f;
     public static final String MusicPath = "examples\\ecs\\examples\\movement\\EricSkiff-ResistorAnthems2021\\EricSkiff-ResistorAnthems2018\\Resistor Anthems";
+
     public final MessageManager messageManager = new MessageManager();
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
@@ -42,6 +43,7 @@ public class Model
     public final MessageWriter<Hit> hitMessageWriter = hitMessages.createWriter();
     public final MessageReader<Hit> hitMessageReader = hitMessages.createReader();
     public final List<Handle<SoundFile>> music = new ArrayList<>();
+    public Row2<Float, Float> renderRatios;
     public int currentlyPlaying = 0;
 
     public Model(final AssetServer assetServer)
@@ -63,8 +65,11 @@ public class Model
             row.a().x += row.b().x;
             row.a().y += row.b().y;
 
-            row.b().x = 0;
-            row.b().y = 0;
+//            row.b().x = Math.clamp(row.b().x, -5, 5);
+//            row.b().y = Math.clamp(row.b().y, -5, 5);
+
+//            row.b().x = 0;
+//            row.b().y = 0;
         });
 
     }
@@ -84,12 +89,15 @@ public class Model
             final var force = row.a();
             final var mass = row.b();
 
-            force.y += 9.8f / 10 * mass.mass;
+            force.y += 9.8f / 25 * mass.mass;
         }
     }
 
-    private void applyDirectionPressed(final PhysicsUpdate msg, final Commands commands, final Query2<Force, GroundedState> query)
+    boolean shouldAddAgain = true;
+    private void applyDirectionPressed(final PhysicsUpdate msg, final Commands commands)
     {
+        final var query = commands.query(Queries.query(Force.class, GroundedState.class, Velocity.class).with(Player.class));
+
         final var keyForce = new Force(0, 0);
 
         if (keys.contains(KeyEvent.VK_W))
@@ -107,21 +115,31 @@ public class Model
             keyForce.x += 1;
         }
 
-        keyForce.mult(1.5f);
+        keyForce.mult(0.6f);
 
         for (final var row : query)
         {
             final var force = row.a();
             final var groundState = row.b();
+            final var velocity = row.c();
 
             force.x += keyForce.x;
+//            force.y += keyForce.y;
 
-            if (groundState.grounded)
+            if (shouldAddAgain)
             {
-                System.out.println("Grounded!");
-
-                force.y += keyForce.y;
+                velocity.y = keyForce.y * 15;
             }
+
+            if (velocity.y < 0) shouldAddAgain = false;
+            if (velocity.y == 0) shouldAddAgain = true;
+
+//            if (groundState.grounded)
+//            {
+//                System.out.println("Grounded!");
+//
+//                force.y += keyForce.y;
+//            }
         }
     }
 
@@ -138,6 +156,8 @@ public class Model
 
     public void setup(final PApplet applet)
     {
+        this.renderRatios = new Row2<>(Movement.RenderSize.a() * 1.0f / applet.width, Movement.RenderSize.b() * 1.0f / applet.height);
+
         final Handle<PImage> idleTexture = assetServer.loadImage(Slime1Animation.Idle.path);
 
         final var folder = new File(applet.dataPath(MusicPath));
@@ -167,15 +187,146 @@ public class Model
             .registerSystem(Draw.class, this::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
+            .registerSystem(MouseClickedEvent.class, this::handleClick)
+            .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
             .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
-            .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed, Queries.query(Force.class, GroundedState.class).with(Player.class))
+            .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
             .registerSystem(PhysicsUpdate.class, this::detectCollisions, Queries.query(Collider2D.class, Position.class, Entity.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
     }
 
+    private void handleClickRelease(final MouseReleasedEvent mouseReleasedEvent, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(Position.class, Grapple.class));
+
+        for (final var row : query)
+        {
+            row.b().state = new Grapple.IdleGrapple();
+        }
+    }
+
+    public PVector fromScreenSpace(final PVector v)
+    {
+        return new PVector(v.x * renderRatios.a(), v.y * renderRatios.b());
+    }
+
+    public static Optional<PVector> horizontalIntersection(final PVector from, final PVector direction, final float lineY, final float leftX, final float rightX)
+    {
+        if (direction.y == 0)
+        {
+            if (from.y != lineY) return Optional.empty();
+
+            if (from.x < leftX && direction.x > 0)
+            {
+                return Optional.of(new PVector(leftX, lineY));
+            }
+
+            if (from.x > rightX && direction.x < 0)
+            {
+                return Optional.of(new PVector(rightX, lineY));
+            }
+
+            return Optional.empty();
+        }
+
+        final var n = (lineY - from.y) / direction.y;
+
+        final var intersectX = n * direction.x + from.x;
+
+        if (intersectX < leftX || intersectX > rightX) return Optional.empty();
+
+        return Optional.of(new PVector(intersectX, lineY));
+    }
+
+    public static Optional<PVector> verticalIntersection(final PVector from, final PVector direction, final float lineX, final float bottomY, final float topY)
+    {
+        if (direction.x == 0)
+        {
+            if (from.x != lineX) return Optional.empty();
+
+            if (from.y > bottomY && direction.y < 0)
+            {
+                return Optional.of(new PVector(lineX, bottomY));
+            }
+
+            if (from.y < topY && direction.y > 0)
+            {
+                return Optional.of(new PVector(lineX, topY));
+            }
+
+            return Optional.empty();
+        }
+
+        final var n = (lineX - from.x) / direction.x;
+
+        final var intersectY = n * direction.y + from.y;
+
+        if (intersectY > bottomY || intersectY < topY) return Optional.empty();
+
+        return Optional.of(new PVector(lineX, intersectY));
+    }
+
+    private void handleClick(final MouseClickedEvent mouseClickedEvent, final Commands commands)
+    {
+        final var mouseLocation = fromScreenSpace(new PVector(mouseClickedEvent.mouseEvent().getX(), mouseClickedEvent.mouseEvent().getY()));
+        final var query = commands.query(Queries.query(Position.class, Grapple.class));
+
+        for (final var row : query)
+        {
+            final var position = row.a();
+            final var grapple = row.b();
+
+            final var grappleDirection = mouseLocation.copy().sub(position);
+
+            final var physicsObjects = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
+
+            Optional<PVector> minFound = Optional.empty();
+            var minDistance = Float.POSITIVE_INFINITY;
+            for (final var physicsObject : physicsObjects)
+            {
+                final var collider = physicsObject.a();
+                final var physicsObjectPosition = physicsObject.b();
+
+                final var rectangleCoordinates = rectangleCoordinates(physicsObjectPosition, collider);
+
+                final var left = verticalIntersection(position, grappleDirection, rectangleCoordinates.topLeft().x, rectangleCoordinates.bottomLeft().y, rectangleCoordinates.topLeft().y);
+                final var right = verticalIntersection(position, grappleDirection, rectangleCoordinates.topRight().x, rectangleCoordinates.bottomRight().y, rectangleCoordinates.topRight().y);
+
+                final var bottom = horizontalIntersection(position, grappleDirection, rectangleCoordinates.bottomLeft().y, rectangleCoordinates.bottomLeft().x, rectangleCoordinates.bottomRight().x);
+                final var top = horizontalIntersection(position, grappleDirection, rectangleCoordinates.topLeft().y, rectangleCoordinates.topLeft().x, rectangleCoordinates.topRight().x);
+
+                final var maybeMin =
+                        Stream
+                                .of(left, right, bottom, top)
+                                .filter(Optional::isPresent).map(Optional::get)
+                                .map(v -> new Row2<>(v, v.dist(position)))
+                                .min(Comparator.comparingDouble(Row2::b));
+
+                if (maybeMin.isEmpty()) continue;
+
+                final var min = maybeMin.get();
+
+                if (min.b() < minDistance)
+                {
+                    minDistance = min.b();
+                    minFound = Optional.of(min.a());
+                }
+            }
+
+            minFound.ifPresent(intersection ->
+            {
+                System.out.printf("Attached to %s!", intersection);
+                grapple.state = new Grapple.AttachedGrapple(intersection);
+            });
+        }
+    }
+
+
+
+    @SuppressWarnings("SameParameterValue")
     private static EntityBuilder rectangleBuilder(final int width, final int height, final int x, final int y, final Color colour)
     {
         return EntityBuilder.create()
@@ -270,12 +421,20 @@ public class Model
                 final var entryTime = Math.max(entryTimeX, entryTimeY);
                 final var exitTime  = Math.min(exitTimeX, exitTimeY);
 
-                if (entryTime > exitTime || entryTime < 0.0f || entryTime > 1.0f)
+                if (entryTime > exitTime
+                        || entryTimeX < 0.0f && entryTimeY < 0.0f
+                        || entryTimeX > 1.0f
+                        || entryTimeY > 1.0f
+                        || nonStaticVelocity.x == 0
+                            && (!inRange(nonStaticCoordinates.topLeft().x, staticCoordinates.topLeft().x, staticCoordinates.topRight().x)
+                            && !inRange(nonStaticCoordinates.topRight().x, staticCoordinates.topLeft().x, staticCoordinates.topRight().x))
+                        || nonStaticVelocity.y == 0
+                            && (!inRange(nonStaticCoordinates.topLeft().y, staticCoordinates.topLeft().y, staticCoordinates.bottomLeft().y)
+                            && !inRange(nonStaticCoordinates.topRight().y, staticCoordinates.topLeft().y, staticCoordinates.bottomLeft().y))
+                )
                 {
                     continue;
                 }
-
-                System.out.println(new Row6<>(entryTime, exitTime, entryTimeX, entryTimeY, exitTimeX, exitTimeY));
 
                 final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
@@ -287,6 +446,11 @@ public class Model
                 nonStaticVelocity.sub(normal.mult(dot));
             }
         }
+    }
+
+    private static boolean inRange(final float value, final float min, final float max)
+    {
+        return value >= min && value <= max;
     }
 
     private PVector hadamardProduct(final PVector a, final PVector b)
@@ -326,8 +490,6 @@ public class Model
 
     private Row2<PVector, Float> getSweptAABBCollisionNormalAndEntryTime(final boolean right, final boolean down, final float entryX, final float entryY)
     {
-        System.out.println(new Row2<>(entryX, entryY));
-
         if (Float.isFinite(entryX) && entryX > entryY)
         {
             if (entryX >= 1.0f || entryX <= 0.0f)
@@ -406,7 +568,8 @@ public class Model
                 .with(new Player())
                 .with(new Collider2D(16, 16, new PVector(24, 24)))
                 .with(new GroundedState(false))
-                .with(new Mass(1));
+                .with(new Mass(1))
+                .with(new Grapple(new Grapple.IdleGrapple()));
     }
 
     private static void applyDrag(final PhysicsUpdate message, final Commands commands, final Query2<Force, Velocity> query)
@@ -416,7 +579,7 @@ public class Model
             final var force = row.a();
             final var velocity = row.b();
 
-            final float drag = DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude();
+            final float drag = DragCoefficients.AbsoluteScalar.value * (DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude());
 
             force.x -= velocity.x * drag;
             force.y -= velocity.y * drag;
