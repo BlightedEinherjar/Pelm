@@ -186,6 +186,7 @@ public class Model
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
+            .registerSystem(Draw.class, this::drawGrapple)
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(MouseClickedEvent.class, this::handleClick)
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
@@ -193,9 +194,85 @@ public class Model
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
-            .registerSystem(PhysicsUpdate.class, this::detectCollisions, Queries.query(Collider2D.class, Position.class, Entity.class))
+            .registerSystem(PhysicsUpdate.class, this::applyGrapple)
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
-            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class))
+            .registerSystem(PhysicsUpdate.class, this::correctPositionForGrapple);
+    }
+
+    private void correctPositionForGrapple(final PhysicsUpdate update, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(Position.class, Grapple.class, Collider2D.class));
+
+        for (final var row : query)
+        {
+            final var collider = row.c();
+            final var position = row.a();
+            final var positionWithOffset = position.copy().add(collider.offset).add(collider.width / 2.0f, collider.height / 2.0f);
+            final var grapple = row.b();
+
+            switch (grapple.state)
+            {
+                case final Grapple.IdleGrapple _, final Grapple.TravellingGrapple _:
+                    break;
+                case final Grapple.AttachedGrapple attachedGrapple:
+                    final var direction = positionWithOffset.copy().sub(attachedGrapple.attachmentPosition);
+                    System.out.println("=================");
+                    System.out.println(attachedGrapple.length);
+                    System.out.println(direction.mag());
+                    System.out.println("-----------------");
+                    if (direction.mag() == attachedGrapple.length) break;
+                    direction.normalize().mult(attachedGrapple.length);
+                    position.set(attachedGrapple.attachmentPosition.copy().add(direction)).sub(collider.offset).sub(collider.width / 2.0f, collider.height / 2.0f);
+                    break;
+            }
+        }
+    }
+
+    private void drawGrapple(final Draw draw, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(Grapple.class, Position.class, Collider2D.class));
+
+        for (final var row : query)
+        {
+            final var grapple = row.a();
+            final var collider = row.c();
+            final var position = row.b().copy().add(collider.offset).add(new PVector(collider.width / 2.0f, collider.height / 2.0f));
+
+            switch (grapple.state)
+            {
+                case final Grapple.TravellingGrapple _, final Grapple.IdleGrapple _:
+                    break;
+                case final Grapple.AttachedGrapple attachedGrapple:
+                    draw.drawContext().line(attachedGrapple.attachmentPosition.x, attachedGrapple.attachmentPosition.y, position.x, position.y);
+                    break;
+            }
+        }
+    }
+
+    private void applyGrapple(final PhysicsUpdate update, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(Grapple.class, Position.class, Velocity.class, Collider2D.class));
+
+        for (final var row : query)
+        {
+            final var collider = row.d();
+            final var grapple = row.a();
+            final var position = row.b().copy().add(collider.offset).add(collider.width / 2.0f, collider.height / 2.0f);
+            final var velocity = row.c();
+
+            switch (grapple.state)
+            {
+                case final Grapple.IdleGrapple _, final Grapple.TravellingGrapple _:
+                    break;
+                case final Grapple.AttachedGrapple attachedGrapple:
+                    final var r = position.copy().sub(attachedGrapple.attachmentPosition);
+                    final var vRadial = velocity.dot(r) / r.magSq();
+                    final var velocityRadial = r.copy().mult(vRadial);
+                    velocity.sub(velocityRadial);
+                    break;
+            }
+        }
     }
 
     private void handleClickRelease(final MouseReleasedEvent mouseReleasedEvent, final Commands commands)
@@ -272,11 +349,12 @@ public class Model
     private void handleClick(final MouseClickedEvent mouseClickedEvent, final Commands commands)
     {
         final var mouseLocation = fromScreenSpace(new PVector(mouseClickedEvent.mouseEvent().getX(), mouseClickedEvent.mouseEvent().getY()));
-        final var query = commands.query(Queries.query(Position.class, Grapple.class));
+        final var query = commands.query(Queries.query(Position.class, Grapple.class, Collider2D.class));
 
         for (final var row : query)
         {
-            final var position = row.a();
+            final var grapplerCollider = row.c();
+            final var position = row.a().copy().add(grapplerCollider.offset).add(grapplerCollider.width / 2.0f, grapplerCollider.height / 2.0f);
             final var grapple = row.b();
 
             final var grappleDirection = mouseLocation.copy().sub(position);
@@ -302,7 +380,7 @@ public class Model
                         Stream
                                 .of(left, right, bottom, top)
                                 .filter(Optional::isPresent).map(Optional::get)
-                                .map(v -> new Row2<>(v, v.dist(position)))
+                                .map(v -> new Row2<>(v, v.copy().sub(position).magSq()))
                                 .min(Comparator.comparingDouble(Row2::b));
 
                 if (maybeMin.isEmpty()) continue;
@@ -316,10 +394,11 @@ public class Model
                 }
             }
 
+            final var length = Math.sqrt(minDistance);
+
             minFound.ifPresent(intersection ->
             {
-                System.out.printf("Attached to %s!", intersection);
-                grapple.state = new Grapple.AttachedGrapple(intersection);
+                grapple.state = new Grapple.AttachedGrapple(intersection, (float) length);
             });
         }
     }

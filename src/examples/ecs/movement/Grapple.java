@@ -18,10 +18,12 @@ public class Grapple
     static final class AttachedGrapple implements GrappleState
     {
         public PVector attachmentPosition;
+        public float length;
 
-        public AttachedGrapple(final PVector attachmentPosition)
+        public AttachedGrapple(final PVector attachmentPosition, final float length)
         {
             this.attachmentPosition = attachmentPosition;
+            this.length = length;
         }
     }
 
