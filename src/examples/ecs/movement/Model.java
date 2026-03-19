@@ -24,7 +24,6 @@ import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -93,10 +92,9 @@ public class Model
         }
     }
 
-    boolean shouldAddAgain = true;
     private void applyDirectionPressed(final PhysicsUpdate msg, final Commands commands)
     {
-        final var query = commands.query(Queries.query(Force.class, GroundedState.class, Velocity.class).with(Player.class));
+        final var query = commands.query(Queries.query(Force.class, GroundedState.class, Velocity.class, Grapple.class).with(Player.class));
 
         final var keyForce = new Force(0, 0);
 
@@ -122,24 +120,28 @@ public class Model
             final var force = row.a();
             final var groundState = row.b();
             final var velocity = row.c();
+            final var grapple = row.d();
 
             force.x += keyForce.x;
-//            force.y += keyForce.y;
 
-            if (shouldAddAgain)
+            if (groundState.grounded)
             {
+                // Impulse!!
                 velocity.y = keyForce.y * 15;
             }
 
-            if (velocity.y < 0) shouldAddAgain = false;
-            if (velocity.y == 0) shouldAddAgain = true;
+            if (grapple.state instanceof final Grapple.AttachedGrapple attachedGrapple)
+            {
+                if (keys.contains(KeyEvent.VK_W))
+                {
+                    attachedGrapple.length -= 1f;
+                }
 
-//            if (groundState.grounded)
-//            {
-//                System.out.println("Grounded!");
-//
-//                force.y += keyForce.y;
-//            }
+                if (keys.contains(KeyEvent.VK_S))
+                {
+                    attachedGrapple.length += 1f;
+                }
+            }
         }
     }
 
@@ -188,16 +190,39 @@ public class Model
             .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
             .registerSystem(Draw.class, this::drawGrapple)
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
-            .registerSystem(MouseClickedEvent.class, this::handleClick)
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
+            .registerSystem(MousePressedEvent.class, this::handleClick)
             .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
+            .registerSystem(PhysicsUpdate.class, this::applyGrappleForce)
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class))
-            .registerSystem(PhysicsUpdate.class, this::applyGrapple)
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
-            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class))
-            .registerSystem(PhysicsUpdate.class, this::correctPositionForGrapple);
+            .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+    }
+
+    private void applyGrappleForce(final PhysicsUpdate update, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(Position.class, Collider2D.class, Force.class, Grapple.class));
+
+        for (final var row : query)
+        {
+            final var collider = row.b();
+            final var position = row.a().copy().add(collider.offset).add(collider.width / 2.0f, collider.height / 2.0f);
+            final var force = row.c();
+            final var grapple = row.d();
+
+            switch (grapple.state)
+            {
+                case final Grapple.IdleGrapple _, final Grapple.TravellingGrapple _:
+                    break;
+                case final Grapple.AttachedGrapple attachedGrapple:
+                    final var between = attachedGrapple.attachmentPosition.copy().sub(position);
+                    final var distance = between.mag();
+                    force.add(between.mult(distance - attachedGrapple.length).mult(0.001f));
+                    break;
+            }
+        }
     }
 
     private void correctPositionForGrapple(final PhysicsUpdate update, final Commands commands)
@@ -275,16 +300,6 @@ public class Model
         }
     }
 
-    private void handleClickRelease(final MouseReleasedEvent mouseReleasedEvent, final Commands commands)
-    {
-        final var query = commands.query(Queries.query(Position.class, Grapple.class));
-
-        for (final var row : query)
-        {
-            row.b().state = new Grapple.IdleGrapple();
-        }
-    }
-
     public PVector fromScreenSpace(final PVector v)
     {
         return new PVector(v.x * renderRatios.a(), v.y * renderRatios.b());
@@ -310,6 +325,8 @@ public class Model
         }
 
         final var n = (lineY - from.y) / direction.y;
+
+        if (n < 0) return Optional.empty();
 
         final var intersectX = n * direction.x + from.x;
 
@@ -339,6 +356,8 @@ public class Model
 
         final var n = (lineX - from.x) / direction.x;
 
+        if (n < 0) return Optional.empty();
+
         final var intersectY = n * direction.y + from.y;
 
         if (intersectY > bottomY || intersectY < topY) return Optional.empty();
@@ -346,16 +365,36 @@ public class Model
         return Optional.of(new PVector(lineX, intersectY));
     }
 
-    private void handleClick(final MouseClickedEvent mouseClickedEvent, final Commands commands)
+    private void handleClickRelease(final MouseReleasedEvent mouseReleasedEvent, final Commands commands)
     {
-        final var mouseLocation = fromScreenSpace(new PVector(mouseClickedEvent.mouseEvent().getX(), mouseClickedEvent.mouseEvent().getY()));
+        System.out.println("Mouse released!");
+
+        final var query = commands.query(Queries.query(Grapple.class));
+
+        for (final var row : query)
+        {
+            System.out.println("Here!");
+            System.out.println(System.identityHashCode(row));
+            row.state = new Grapple.IdleGrapple();
+        }
+    }
+
+    private void handleClick(final MousePressedEvent mousePressedEvent, final Commands commands)
+    {
+        System.out.println("Click started!");
+
+        final var mouseLocation = fromScreenSpace(new PVector(mousePressedEvent.mouseEvent().getX(), mousePressedEvent.mouseEvent().getY()));
         final var query = commands.query(Queries.query(Position.class, Grapple.class, Collider2D.class));
 
         for (final var row : query)
         {
+            System.out.println("Clicked!");
+
             final var grapplerCollider = row.c();
             final var position = row.a().copy().add(grapplerCollider.offset).add(grapplerCollider.width / 2.0f, grapplerCollider.height / 2.0f);
             final var grapple = row.b();
+
+            System.out.println(System.identityHashCode(grapple));
 
             final var grappleDirection = mouseLocation.copy().sub(position);
 
@@ -463,10 +502,12 @@ public class Model
     {
         final var statics = commands.query(Queries.query(Collider2D.class, Position.class).without(Velocity.class));
 
-        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class));
+        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, GroundedState.class));
 
         for (final var nonStaticRow : nonStatics)
         {
+            nonStaticRow.d().grounded = false;
+
             for (final var staticsRow : statics)
             {
                 final var staticCollider = staticsRow.a();
@@ -521,12 +562,15 @@ public class Model
 
                 final var dot = nonStaticVelocity.dot(normal);
 
-                // Contact points would be good.
                 nonStaticVelocity.sub(normal.mult(dot));
+
+                if (normal.y > 0)
+                    nonStaticRow.d().grounded = true;
             }
         }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean inRange(final float value, final float min, final float max)
     {
         return value >= min && value <= max;
