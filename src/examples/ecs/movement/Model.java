@@ -27,12 +27,17 @@ import java.util.List;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-// I dreamt this already worked...
+import static examples.ecs.movement.Movement.PhysicsInterval;
+import static examples.ecs.movement.Movement.RenderSize;
+.
 @SuppressWarnings("DuplicatedCode")
 public class Model
 {
     public static final float MoveAwayFactor = 0.1f;
     public static final String MusicPath = "examples\\ecs\\examples\\movement\\EricSkiff-ResistorAnthems2021\\EricSkiff-ResistorAnthems2018\\Resistor Anthems";
+    public static final float ScrollSpeed = 0.2f;
+    public static final int SquareSize = RenderSize.a() / 10;
+    public static final float ScrollInterval = PhysicsInterval * 5 * SquareSize / ScrollSpeed;
 
     public final MessageManager messageManager = new MessageManager();
     public final Set<Integer> keys = new HashSet<>();
@@ -45,6 +50,9 @@ public class Model
     public Row2<Float, Float> renderRatios;
     public int currentlyPlaying = 0;
     public float scrollDegree = 0f;
+    public Pattern[] patterns = Arrays.stream(Patterns.class.getEnumConstants()).map(x -> x.pattern).toArray(Pattern[]::new);
+    public Random random = new Random();
+    public int layerCount = 0;
 
     public Model(final AssetServer assetServer)
     {
@@ -121,10 +129,23 @@ public class Model
 
             force.x += keyForce.x;
 
-            if (contactPoints.grounded(keyForce.x))
+            final Optional<PVector> grounded;
+
+            if (keys.contains(KeyEvent.VK_W) && (grounded = contactPoints.grounded(keyForce.x)).isPresent())
             {
+                final var v = grounded.get();
+
+                System.out.println(v);
+
+                v.y = Math.min(-1, v.y);
+
+                System.out.println(v.y);
+
+                v.y *= 30f;
+                v.x *= 15;
+
                 // Impulse!!
-                velocity.y = keyForce.y * 15;
+                velocity.add(v);
                 if (Math.abs(keyForce.y) > 0)
                 {
                     contactPoints.coyoteFrameCounter = 5;
@@ -176,24 +197,66 @@ public class Model
 
         entityComponentSystem.spawn(player.build());
 
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 1000; i++)
         {
             freeBoxBuilder().spawn(entityComponentSystem);
         }
 
-        boxBuilder(100, 10, 30, 100, Color.red).spawn(entityComponentSystem);
-        boxBuilder(10, 100, 100, 30, Color.black).spawn(entityComponentSystem);
-        boxBuilder(100, 10, 30, 130, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, 1, 0, 5 * SquareSize, Color.white).spawn(entityComponentSystem);
+        boxBuilder(6 * SquareSize, 2, 2 * SquareSize, 5 * SquareSize, Color.white).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, 1, 9 * SquareSize, 5 * SquareSize, Color.white).spawn(entityComponentSystem);
+
+        boxBuilder(SquareSize, SquareSize, 3 * SquareSize, 4 * SquareSize, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 2, 4 * SquareSize, 3 * SquareSize, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 3, 5 * SquareSize, 2 * SquareSize, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(2 * SquareSize, SquareSize * 4, 6 * SquareSize, SquareSize, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 5, 9 * SquareSize, 0, Color.blue).spawn(entityComponentSystem);
+
+        final var decreaseAmount = -5 * SquareSize;
+
+        boxBuilder(SquareSize, 1, 9 * SquareSize, 5 * SquareSize + decreaseAmount, Color.white).spawn(entityComponentSystem);
+        boxBuilder(6 * SquareSize, 2, 2 * SquareSize, 5 * SquareSize + decreaseAmount, Color.white).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, 1, 0, 5 * SquareSize + decreaseAmount, Color.white).spawn(entityComponentSystem);
+
+        boxBuilder(SquareSize, SquareSize, 6 * SquareSize, 4 * SquareSize + decreaseAmount, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 2, 5 * SquareSize, 3 * SquareSize + decreaseAmount, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 3, 4 * SquareSize, 2 * SquareSize + decreaseAmount, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(2 * SquareSize, SquareSize * 4, 2 * SquareSize, SquareSize + decreaseAmount, Color.blue).spawn(entityComponentSystem);
+        boxBuilder(SquareSize, SquareSize * 5, 0, decreaseAmount, Color.blue).spawn(entityComponentSystem);
+
+//        boxBuilder(SquareSize, 1, 0, 0 * SquareSize, Color.white).spawn(entityComponentSystem);
+//        boxBuilder(6 * SquareSize, 2, 2 * SquareSize, 0 * SquareSize, Color.white).spawn(entityComponentSystem);
+//        boxBuilder(SquareSize, 1, 9 * SquareSize, 0 * SquareSize, Color.white).spawn(entityComponentSystem);
+
+        boxBuilder(5, 5, 0, 0, Color.yellow).spawn(entityComponentSystem);
+
+//        boxBuilder(100, 10, 30, 100, Color.red).spawn(entityComponentSystem);
+//        boxBuilder(10, 100, 100, 30, Color.black).spawn(entityComponentSystem);
+//        boxBuilder(100, 10, 30, 130, Color.blue).spawn(entityComponentSystem);
+//        boxBuilder(480, 10, 0, 150, Color.cyan).spawn(entityComponentSystem);
+////        boxBuilder(50, 50, 50, 480 - 400, Color.green).spawn(entityComponentSystem);
+////        boxBuilder(50, 100, 100, 430 - 400, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 150, 150 - 20, 0, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 200, 200 - 20, 330 - 400 + 40, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 150, 250 - 20, 280 - 380 + 40, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 200, 30 - 200 - 20, 230 - 360 + 40, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 250, 350 - 20, 180 - 340 + 40, Color.green).spawn(entityComponentSystem);
+//        boxBuilder(50, 300, 400 - 20, 130 - 300 + 40, Color.green).spawn(entityComponentSystem);
+//
+//
+//        boxBuilder(30, 20, 20, 60, Color.black).spawn(entityComponentSystem);
 
         entityComponentSystem
             .registerSystem(Draw.class, this::drawSprites, Queries.query(Position.class, Sprite.class).with(Drawable.class))
             .registerSystem(Draw.class, this::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
-            .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
+//            .registerSystem(Draw.class, this::drawColliders, Queries.query(Position.class, Collider2D.class))
             .registerSystem(Draw.class, this::drawGrapple)
+            .registerSystem(SpawnBoxes.class, Model::freeBoxes)
             .registerSystem(SpawnBoxes.class, this::spawnBoxes)
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
             .registerSystem(MousePressedEvent.class, this::handleClick)
+            .registerSystem(PhysicsUpdate.class, this::tickJumpDelays)
             .registerSystem(PhysicsUpdate.class, this::updateScroll)
             .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class, JumpContext.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
@@ -203,6 +266,24 @@ public class Model
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class, JumpContext.class))
             .registerSystem(PhysicsUpdate.class, this::applyCollisions)
             .registerSystem(PhysicsUpdate.class, Model::updatePosition, Queries.query(Position.class, Velocity.class));
+    }
+
+    private static void freeBoxes(final SpawnBoxes spawnBoxes, final Commands commands)
+    {
+        final Query4<Collider2D, Rectangle, Position, IsFree> query = commands.query(BoxQuery);
+
+        for (final var row : query)
+        {
+            if (row.c().y > RenderSize.b() * 2)
+            {
+                row.d().free = true;
+            }
+        }
+    }
+
+    private void tickJumpDelays(final PhysicsUpdate update, final Commands commands)
+    {
+        commands.query(Queries.query(JumpContext.class)).forEach(j -> j.jumpDelay++);
     }
 
     private void applyWallFriction(final PhysicsUpdate update, final Commands commands)
@@ -215,57 +296,43 @@ public class Model
             final var force = row.b();
             final var velocity = row.c();
 
+            final var accumulator = new PVector();
+
             for (final var contactDirection : jumpContext.contactDirections)
             {
-                if (Math.abs(contactDirection.x) > 0)
-                {
-                    final float drag = DragCoefficients.AbsoluteScalar.value * (DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude()) * 6;
+                accumulator.add(contactDirection);
+            }
 
-                    force.x -= velocity.x * drag;
+            if (Math.abs(accumulator.x) > 0)
+            {
+                final float drag = DragCoefficients.AbsoluteScalar.value * (DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude()) * 6;
 
-                    if (velocity.y > 0)
-                        force.y -= velocity.y * drag;
+//                    force.x -= velocity.x * drag;
 
-                    force.x -= contactDirection.x * 0.60f;
+                if (velocity.y > 0)
+                    force.y -= velocity.y * drag;
 
-                    break;
-                }
+//                force.x -= accumulator.x * 0.03f;
+
+                break;
             }
         }
     }
 
     private void updateScroll(final PhysicsUpdate update, final Commands commands)
     {
-        scrollDegree += 0.1f;
+        scrollDegree += ScrollSpeed;
     }
 
     private void spawnBoxes(final SpawnBoxes spawnBoxes, final Commands commands)
     {
-        final var query = commands.query(BoxQuery);
+        layerCount++;
 
-        for (final var row : query)
-        {
-            if (!row.d().free) continue;
+        final Query4<Collider2D, Rectangle, Position, IsFree> query = commands.query(BoxQuery);
 
-            final var collider = row.a();
-            final var rectangle = row.b();
-            final var position = row.c();
-            final var isFree = row.d();
+        final var pattern = patterns[random.nextInt(0, patterns.length)];
 
-            collider.width = (int) (Math.random() * 200);
-            collider.height = (int) (Math.random() * 100);
-
-            rectangle.color = new Color((float) Math.random(), (float) Math.random(), (float) Math.random());
-            rectangle.width = collider.width;
-            rectangle.height = collider.height;
-
-            position.y = -scrollDegree - collider.height;
-            position.x = (float) (Math.random() * (Movement.RenderSize.b() + collider.width) - collider.width);
-
-            isFree.free = false;
-
-            break;
-        }
+        pattern.patternFunction.accept(layerCount, query);
     }
 
     private static void lowerAll(final PhysicsUpdate update, final Commands commands)

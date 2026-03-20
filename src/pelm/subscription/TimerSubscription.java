@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 // Need to make an animation frame subscription too.
 public class TimerSubscription<TMessage> extends SupplierSubscription<TMessage>
 {
-    private int howManyTimesTriggered = 1;
+    private int howManyTimesTriggered = 0;
     private final int periodMilliseconds;
     private final int createdMilliseconds;
 

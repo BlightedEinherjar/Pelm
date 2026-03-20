@@ -13,9 +13,12 @@ import utils.row.Row2;
 
 import java.util.stream.Stream;
 
+import static examples.ecs.movement.Model.ScrollInterval;
+
 public class Movement extends Pelm<Model, Message>
 {
     public static final Row2<Integer, Integer> RenderSize = new Row2<>(480, 270);
+    public static final int PhysicsInterval = 15;
 
     private PGraphics drawContext;
 
@@ -41,8 +44,12 @@ public class Movement extends Pelm<Model, Message>
     }
 
     private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
-    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), 15, PhysicsUpdate::new);
-    private final TimerSubscription<Message> spawnBoxesTimer = new TimerSubscription<>(millis(), 1500, SpawnBoxes::new);
+    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), PhysicsInterval, PhysicsUpdate::new);
+    private final TimerSubscription<Message> spawnBoxesTimer = new TimerSubscription<>(millis(), ((int) ScrollInterval), () ->
+    {
+        System.out.println("Called!!!");
+        return new SpawnBoxes();
+    });
     private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
     private final FunctionSubscription<MouseEvent, Message> mouseClickedSubscription = FunctionSubscription.create(SubscriptionCategory.MousePressed, MousePressedEvent::new);
@@ -76,7 +83,7 @@ public class Movement extends Pelm<Model, Message>
 
         drawContext.translate(0, model.scrollDegree);
 
-        drawContext.background(127, 255, 3);
+        drawContext.background(30, 60, 3);
 
         model.entityComponentSystem.update(new Draw(drawContext));
 
