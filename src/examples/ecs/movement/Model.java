@@ -25,15 +25,13 @@ import java.io.File;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import static examples.ecs.movement.Movement.PhysicsInterval;
 import static examples.ecs.movement.Movement.RenderSize;
-.
+
 @SuppressWarnings("DuplicatedCode")
 public class Model
 {
-    public static final float MoveAwayFactor = 0.1f;
     public static final String MusicPath = "examples\\ecs\\examples\\movement\\EricSkiff-ResistorAnthems2021\\EricSkiff-ResistorAnthems2018\\Resistor Anthems";
     public static final float ScrollSpeed = 0.2f;
     public static final int SquareSize = RenderSize.a() / 10;
@@ -43,9 +41,6 @@ public class Model
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
     public final AssetServer assetServer;
-    public final Messages<Hit> hitMessages = messageManager.access(Hit.class);
-    public final MessageWriter<Hit> hitMessageWriter = hitMessages.createWriter();
-    public final MessageReader<Hit> hitMessageReader = hitMessages.createReader();
     public final List<Handle<SoundFile>> music = new ArrayList<>();
     public Row2<Float, Float> renderRatios;
     public int currentlyPlaying = 0;
@@ -256,11 +251,11 @@ public class Model
             .registerSystem(UpdateSlimeAnimationFrame.class, Model::updateSlimeAnimationFrame, Queries.query(Sprite.class).with(Player.class))
             .registerSystem(MouseReleasedEvent.class, this::handleClickRelease)
             .registerSystem(MousePressedEvent.class, this::handleClick)
-            .registerSystem(PhysicsUpdate.class, this::tickJumpDelays)
+            .registerSystem(PhysicsUpdate.class, Model::tickJumpDelays)
             .registerSystem(PhysicsUpdate.class, this::updateScroll)
             .registerSystem(PhysicsUpdate.class, Model::applyGravity, Queries.query(Force.class, Mass.class, JumpContext.class))
             .registerSystem(PhysicsUpdate.class, Model::applyDrag, Queries.query(Force.class, Velocity.class))
-            .registerSystem(PhysicsUpdate.class, this::applyWallFriction)
+            .registerSystem(PhysicsUpdate.class, Model::applyWallFriction)
             .registerSystem(PhysicsUpdate.class, this::applyDirectionPressed)
             .registerSystem(PhysicsUpdate.class, this::applyGrappleForce)
             .registerSystem(PhysicsUpdate.class, Model::applyForce, Queries.query(Force.class, Velocity.class, Mass.class, JumpContext.class))
@@ -281,12 +276,12 @@ public class Model
         }
     }
 
-    private void tickJumpDelays(final PhysicsUpdate update, final Commands commands)
+    private static void tickJumpDelays(final PhysicsUpdate update, final Commands commands)
     {
         commands.query(Queries.query(JumpContext.class)).forEach(j -> j.jumpDelay++);
     }
 
-    private void applyWallFriction(final PhysicsUpdate update, final Commands commands)
+    private static void applyWallFriction(final PhysicsUpdate update, final Commands commands)
     {
         final var query = commands.query(Queries.query(JumpContext.class, Force.class, Velocity.class));
 
@@ -307,18 +302,15 @@ public class Model
             {
                 final float drag = DragCoefficients.AbsoluteScalar.value * (DragCoefficients.K1.value + DragCoefficients.K2.value * velocity.magnitude()) * 6;
 
-//                    force.x -= velocity.x * drag;
-
                 if (velocity.y > 0)
                     force.y -= velocity.y * drag;
-
-//                force.x -= accumulator.x * 0.03f;
 
                 break;
             }
         }
     }
 
+    // Not strictly tied to physics but I want it on the same update interval, and it seems unneeded to add another message type.
     private void updateScroll(final PhysicsUpdate update, final Commands commands)
     {
         scrollDegree += ScrollSpeed;
@@ -908,48 +900,6 @@ public class Model
 
             force.x = 0;
             force.y = 0;
-        }
-    }
-
-    public void detectCollisions(final PhysicsUpdate message, final Commands commands, final Query3<Collider2D, Position, Entity> query)
-    {
-//        final var query2 = commands.query(Queries.query(Collider2D.class, Position.class, Entity.class));
-
-        int i = -1;
-        for (final var row1 : query)
-        {
-            i++;
-
-            StreamSupport.stream(query.spliterator(), false).skip(i).forEach(row2 ->
-            {
-                final var collider1 = row1.a();
-                final var collider2 = row2.a();
-
-                final var position1 = row1.b();
-                final var position2 = row2.b();
-
-                final var entity1 = row1.c();
-                final var entity2 = row2.c();
-
-                if (entity1.equals(entity2))
-                {
-                    return;
-                }
-
-                // Cannot use corners: https://www.desmos.com/Calculator/jguktvly6e
-                if (isColliding(collider1, position1, collider2, position2))
-                {
-                    // Ordering of entities (left < right)
-                    final Row2<CollisionDetectionData, CollisionDetectionData> leftRight = getLeftRight(entity1, collider1, position1, entity2, collider2, position2);
-
-                    final var left = leftRight.a();
-                    final var right = leftRight.b();
-
-                    final var leftToRight = getLeftToRight(right, left);
-
-                    this.hitMessageWriter.send(new Hit(left, right));
-                }
-            });
         }
     }
 

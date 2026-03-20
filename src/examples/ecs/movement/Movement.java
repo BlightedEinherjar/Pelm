@@ -71,13 +71,15 @@ public class Movement extends Pelm<Model, Message>
     @Override
     protected void view(final Model model)
     {
-//        if (!model.music.get(model.currentlyPlaying).get().isPlaying())
-//        {
-//            // Maybe double check this is not set to the same twice.
-//            model.currentlyPlaying = (int) random(0.0f, model.music.size());
-//
-//            model.music.get(model.currentlyPlaying).get().play();
-//        }
+        // Music sourced from free offerings by Eric Skiff as well as a .midi version of Korobeiniki sourced from https://freemidi.org/ and converted using https://8bit-music-generator.online/
+        // Initial loading of music is a bit slow. Would be ideal to have a loading phase before the game starts as the logic starts running before the rendering can begin.
+        if (!model.music.get(model.currentlyPlaying).get().isPlaying())
+        {
+            // Maybe double check this is not set to the same twice.
+            model.currentlyPlaying = (int) random(0.0f, model.music.size());
+
+            model.music.get(model.currentlyPlaying).get().play();
+        }
 
         drawContext.beginDraw();
 
