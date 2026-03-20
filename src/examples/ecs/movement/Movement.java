@@ -1,5 +1,6 @@
 package examples.ecs.movement;
 
+import examples.ecs.movement.messages.*;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
 import pelm.core.SubscriptionCategory;
@@ -44,12 +45,8 @@ public class Movement extends Pelm<Model, Message>
     }
 
     private final TimerSubscription<Message> updateSlimeFrameTimer = new TimerSubscription<>(millis(), 150, UpdateSlimeAnimationFrame::new);
-    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), PhysicsInterval, PhysicsUpdate::new);
-    private final TimerSubscription<Message> spawnBoxesTimer = new TimerSubscription<>(millis(), ((int) ScrollInterval), () ->
-    {
-        System.out.println("Called!!!");
-        return new SpawnBoxes();
-    });
+    private final TimerSubscription<Message> updatePhysicsTimer = new TimerSubscription<>(millis(), PhysicsInterval, Tick::new);
+    private final TimerSubscription<Message> spawnBoxesTimer = new TimerSubscription<>(millis(), ((int) ScrollInterval), SpawnBoxes::new);
     private final ButtonPressedSubscription<Message> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, Message> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
     private final FunctionSubscription<MouseEvent, Message> mouseClickedSubscription = FunctionSubscription.create(SubscriptionCategory.MousePressed, MousePressedEvent::new);
@@ -83,7 +80,7 @@ public class Movement extends Pelm<Model, Message>
 
         drawContext.beginDraw();
 
-        drawContext.translate(0, model.scrollDegree);
+        drawContext.translate(0, model.physics.scrollDegree);
 
         drawContext.background(30, 60, 3);
 
@@ -102,10 +99,10 @@ public class Movement extends Pelm<Model, Message>
         switch (message)
         {
             case DirectionReleased(final int releasedKey):
-                model.keys.remove(releasedKey);
+                model.controls.keys.remove(releasedKey);
                 break;
             case DirectionPressed(final int pressedKey):
-                model.keys.add(pressedKey);
+                model.controls.keys.add(pressedKey);
                 break;
             default:
                 model.entityComponentSystem.update(message);
