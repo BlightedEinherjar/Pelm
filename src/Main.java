@@ -1,6 +1,7 @@
 import entity_component_system.query.MessageManager;
 import entity_component_system.query.MessageReader;
 import entity_component_system.query.MessageWriter;
+import examples.ecs.ai.AIExample;
 import examples.ecs.movement.Model;
 import examples.ecs.movement.Movement;
 import processing.core.PApplet;
@@ -12,7 +13,7 @@ public class Main
 {
     public static void main(final String[] args)
     {
-        final var pelm = new Movement();
+        final var pelm = new AIExample();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
 

@@ -4,6 +4,7 @@ import processing.core.PApplet;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 
+import java.awt.*;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -111,8 +112,6 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     public void mouseReleased(final MouseEvent event) {
         super.mouseReleased(event);
 
-        System.out.println("Released!");
-
         this
                 .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MouseReleased)
@@ -217,5 +216,16 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
                 .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.WindowMoved)
                 .forEach(subscription -> this.updateModel(subscription.trigger(null)));
+    }
+
+
+
+
+
+
+
+    public void background(final Color colour)
+    {
+        background(colour.getRGB());
     }
 }

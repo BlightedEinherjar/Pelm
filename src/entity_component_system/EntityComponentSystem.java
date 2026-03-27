@@ -4,6 +4,7 @@ import entity_component_system.archetype.ArchetypeManager;
 import entity_component_system.entity.Entity;
 import entity_component_system.entity.Location;
 import entity_component_system.query.*;
+import examples.ecs.movement.entities.EntityBuilder;
 import utils.row.Row2;
 import utils.consumer.Consumer3;
 import utils.safe_queue.ArrayQueue;
@@ -14,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class EntityComponentSystem
 {
@@ -222,6 +225,13 @@ public class EntityComponentSystem
         entityLocations.add(new Location(archetypeId, entityIndex, 0, true));
 
         return new Entity(entityId);
+    }
+
+    public EntityComponentSystem spawn(final Function<EntityBuilder, EntityBuilder> function)
+    {
+        function.apply(EntityBuilder.create()).spawn(this);
+
+        return this;
     }
 
     public void markForDeath(final Entity entity)
