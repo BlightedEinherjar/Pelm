@@ -39,7 +39,7 @@ public class AIExample extends Pelm<AIExampleModel, AIExampleMessage>
     {
         this.drawContext = createGraphics(RenderSize.a(), RenderSize.b());
 
-        this.model.setup();
+        this.model.setup(this);
 
         super.onSetup();
     }
