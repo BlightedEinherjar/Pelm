@@ -1,11 +1,7 @@
 package examples.ecs.ai;
 
-import examples.ecs.ai.messages.AIExampleMessage;
-import examples.ecs.ai.messages.Tick;
-import examples.ecs.ai.messages.DirectionPressed;
-import examples.ecs.ai.messages.DirectionReleased;
+import examples.ecs.ai.messages.*;
 import examples.ecs.movement.messages.Draw;
-import examples.ecs.movement.messages.Message;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
 import pelm.core.SubscriptionCategory;
@@ -16,7 +12,6 @@ import processing.core.PGraphics;
 import processing.event.KeyEvent;
 import utils.row.Row2;
 
-import java.awt.*;
 import java.util.stream.Stream;
 
 public class AIExample extends Pelm<AIExampleModel, AIExampleMessage>
@@ -54,13 +49,14 @@ public class AIExample extends Pelm<AIExampleModel, AIExampleMessage>
     }
 
     private final TimerSubscription<AIExampleMessage> ticker = new TimerSubscription<>(millis(), 15, Tick::new);
+    private final TimerSubscription<AIExampleMessage> selectNewWanderLocation = new TimerSubscription<>(millis(), 10000, SelectNewWanderLocation::new);
     private final ButtonPressedSubscription<AIExampleMessage> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, AIExampleMessage> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
 
     @Override
     protected Stream<? extends Subscription<AIExampleMessage>> subscriptions(final AIExampleModel aiExampleModel)
     {
-        return Stream.of(ticker, keyPressSubscription, keyReleaseSubscription);
+        return Stream.of(ticker, keyPressSubscription, keyReleaseSubscription, selectNewWanderLocation);
     }
 
     @Override

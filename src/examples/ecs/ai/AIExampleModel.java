@@ -6,15 +6,14 @@ import entity_component_system.components.space.Position;
 import entity_component_system.components.space.Velocity;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
-import entity_component_system.query.Query2;
 import examples.ecs.ai.messages.DirectionPressed;
 import examples.ecs.ai.messages.DirectionReleased;
+import examples.ecs.ai.messages.SelectNewWanderLocation;
 import examples.ecs.movement.components.Player;
 import examples.ecs.movement.drawing.*;
 import examples.ecs.movement.drawing.Composite;
 import examples.ecs.movement.drawing.Rectangle;
 import examples.ecs.movement.drawing.Shape;
-import examples.ecs.movement.entities.EntityBuilder;
 import examples.ecs.movement.messages.Draw;
 import examples.ecs.ai.messages.Tick;
 import examples.ecs.movement.physics.collision.Collider2D;
@@ -23,14 +22,14 @@ import processing.core.PImage;
 import processing.core.PVector;
 import utils.row.Row2;
 
+import static examples.ecs.ai.EnemyState.StateType.Wandering;
 import static java.awt.event.KeyEvent.*;
 
 import java.awt.*;
+import java.util.*;
 import java.util.List;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static examples.ecs.movement.Utils.*;
@@ -40,9 +39,15 @@ public class AIExampleModel
     private static final float AIMaximumSpeedFactor = 0.8f;
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
+    public final boolean[][] layout = new boolean[27][48];
+    public final Random random = new Random();
+    public boolean hasWon = false;
+    public PImage wonImage;
 
     public void setup(final PApplet loader)
     {
+        wonImage = loader.loadImage("examples/ecs/examples/ai/Won.png");
+
         final var levelImage = loader.loadImage("examples/ecs/examples/ai/Level.png");
 
         levelImage.loadPixels();
@@ -70,14 +75,25 @@ public class AIExampleModel
                             .with(new Drawable())
                             .with(new Position(xCopy * 10, yCopy * 10));
 
-                    if (red == green && green == blue) return builder.with(new Rectangle(10, 10, new Color(pixel)));
+                    if (red == green && green == blue)
+                    {
+                        layout[yCopy][xCopy] = true;
+                        return builder.with(new Rectangle(10, 10, new Color(pixel))).with(CellType.Wall);
+                    }
+
+                    if (green >= 0.7)
+                    {
+                        return builder.with(new Rectangle(10, 10, new Color(pixel)))
+                                .with(CellType.Goal);
+                    }
 
                     if (blue >= 0.5)
                     {
                         return builder
                             .with(Velocity.zero())
                             .with(new Player())
-                            .with(new Rectangle(10, 10, new Color(pixel)));
+                            .with(new Rectangle(10, 10, new Color(pixel)))
+                            .with(CellType.Player);
                     }
 
                     if (red >= 0.7)
@@ -85,9 +101,11 @@ public class AIExampleModel
                         return builder
                                 .with(Velocity.zero())
                                 .with(new Composite(List.of(
-                                    new Cone(20f, (float) Math.toRadians(90d), 0f, new Color(255, 0, 0, 120), new PVector(5, 5)),
+                                    new Cone(40f, (float) Math.toRadians(90d), 0f, new Color(255, 0, 0, 60), new PVector(5, 5)),
                                     new Rectangle(10, 10, new Color(pixel)))))
-                                .with(new Facing(0f));
+                                .with(new Facing(0f))
+                                .with(new EnemyState(Wandering, new Row2<>(xCopy, yCopy)))
+                                .with(CellType.Enemy);
                     }
 
                     return builder;
@@ -96,37 +114,51 @@ public class AIExampleModel
         }
 
         entityComponentSystem
-//                .spawn(builder -> builder
-//                    .with(new Collider2D(10, 10, new PVector()))
-//                    .with(new Drawable())
-//                    .with(new Rectangle(10, 10, Color.BLUE))
-//                    .with(Velocity.zero())
-//                    .with(new Player())
-//                    .with(new Position(50, 50)))
-//                .spawn(builder -> builder
-//                    .with(new Collider2D(10, 10, new PVector()))
-//                    .with(new Drawable())
-//                    .with(new Rectangle(10, 10, Color.WHITE))
-//                    .with(new Position(70, 50)))
-//                .spawn(builder -> builder
-//                    .with(new Collider2D(10, 10, new PVector()))
-//                    .with(new Drawable())
-//                    .with(new Rectangle(10, 10, Color.RED))//new Composite(List.of()))//, new Cone(30f, (float) Math.toRadians(30d), (float) Math.toRadians(27d), Color.GREEN))))
-//                    .with(new Position(90, 90))
-//                    .with(Velocity.zero()))
                 .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
+                .registerSystem(Draw.class, this::showWin)
 
                 .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
                 .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
 
-                .registerSystem(Tick.class, AIExampleModel::applyCollisions)
+                .registerSystem(Tick.class, this::applyCollisions)
                 .registerSystem(Tick.class, this::updatePositions)
                 .registerSystem(Tick.class, this::handleInputs)
                 .registerSystem(Tick.class, this::directEnemy)
                 .registerSystem(Tick.class, this::lookAtPlayer)
                 .registerSystem(Tick.class, this::updateCone)
 
+                .registerSystem(SelectNewWanderLocation.class, this::selectNewWanderLocation)
                 ;
+    }
+
+    private void showWin(final Draw draw, final Commands commands)
+    {
+        if (hasWon)
+            draw.drawContext().image(wonImage, 0, 0, 480, 270);
+    }
+
+    private void selectNewWanderLocation(final SelectNewWanderLocation selectNewWanderLocation, final Commands commands)
+    {
+        System.out.println("Called!!");
+        final var query = commands.query(Queries.query(EnemyState.class));
+
+        StreamSupport.stream(query.spliterator(), false).filter(x -> x.stateType == Wandering).forEach(x ->
+        {
+            x.searchLocation = selectLocation();
+        });
+    }
+
+    private Row2<Integer, Integer> selectLocation()
+    {
+        while (true)
+        {
+            final var x = random.nextInt(48);
+            final var y = random.nextInt(27);
+
+            if (layout[y][x]) continue;
+
+            return new Row2<>(x, y);
+        }
     }
 
     private void updateCone(final Tick tick, final Commands commands)
@@ -178,15 +210,21 @@ public class AIExampleModel
     {
         final var playerQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class).with(Player.class));
 
-        final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class).without(Player.class));
+        final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, EnemyState.class).without(Player.class));
 
         first(playerQuery).ifPresent(playerData ->
         {
             for (final var row : enemiesQuery)
             {
-                row.c().add(playerData.b().copy().sub(row.b()).normalize().mult(AIMaximumSpeedFactor));
+                row.c().add(locationToPVector(row.d().searchLocation).sub(row.b()).normalize().mult(AIMaximumSpeedFactor));
+//                row.c().add(playerData.b().copy().sub(row.b()).normalize().mult(AIMaximumSpeedFactor));
             }
         });
+    }
+
+    private PVector locationToPVector(final Row2<Integer, Integer> location)
+    {
+        return new PVector(location.a() * 10, location.b() * 10);
     }
 
     private void updatePositions(final Tick tick, final Commands commands)
@@ -213,26 +251,17 @@ public class AIExampleModel
 
         accumulator.normalize();
 
-        if (accumulator.magnitude() > 0)
-        {
-            System.out.println("Hey!");
-        }
-
-        final var test = StreamSupport
-                .stream(query.spliterator(), false)
-                .toList();
-
         for (final var row : query)
         {
             row.add(accumulator);
         }
     }
 
-    public static void applyCollisions(final Tick ignoredMessage, final Commands commands)
+    public void applyCollisions(final Tick ignoredMessage, final Commands commands)
     {
-        final var statics = commands.query(Queries.query(Collider2D.class, Position.class));//.without(Velocity.class));
+        final var statics = commands.query(Queries.query(Collider2D.class, Position.class, CellType.class));
 
-        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class));
+        final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, CellType.class));
 
         for (final var nonStaticRow : nonStatics)
         {
@@ -283,6 +312,8 @@ public class AIExampleModel
                         || entryTime > 1.0f
                 ) continue;
 
+                if (nonStaticRow.d() == CellType.Player && staticsRow.c() == CellType.Goal) this.hasWon = true;
+
                 final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
                 final var dot = nonStaticVelocity.dot(normal);
@@ -325,5 +356,95 @@ public class AIExampleModel
         }
 
         return new Row2<>(entryX / nonStaticVelocity.x, exitX / nonStaticVelocity.x);
+    }
+
+    private record Node(Row2<Integer, Integer> position, int neighbourCost, int previousCost)
+    {
+        public static Node fromLocation(final Row2<Integer, Integer> location, final Row2<Integer, Integer> target, final int previousCost)
+        {
+            return new Node(location, Math.abs(location.a() - target.a()) + Math.abs(location.b() - target.b()), previousCost);
+        }
+
+        public int totalCost()
+        {
+            return neighbourCost() + previousCost();
+        }
+    }
+
+    public Optional<List<Row2<Integer, Integer>>> AStar(final Row2<Integer, Integer> current, final Row2<Integer, Integer> target)
+    {
+        final Map<Row2<Integer, Integer>, Node> origin = new HashMap<>();
+        final PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparing(Node::totalCost));
+        open.add(Node.fromLocation(current, target, 0));
+        final Set<Row2<Integer, Integer>> closed = new HashSet<>();
+
+        while (true)
+        {
+            var polled = open.poll();
+
+            if (polled == null) return Optional.empty();
+
+            if (polled.position().equals(target))
+            {
+                final List<Row2<Integer, Integer>> nodes = new ArrayList<>();
+
+                nodes.add(polled.position());
+
+                while (true)
+                {
+                    final var from = origin.get(polled.position());
+
+                    if (from == null) return Optional.of(nodes.reversed());
+
+                    nodes.add(from.position());
+
+                    polled = from;
+                }
+            }
+
+            closed.add(polled.position());
+
+            final var neighbours = getNeighbours(polled.position());
+
+            final var polledCopy = polled;
+
+            neighbours.filter(x -> !closed.contains(x)).forEach(e ->
+            {
+                if (!origin.containsKey(e) || origin.get(e).totalCost() > polledCopy.totalCost())
+                {
+                    origin.put(e, polledCopy);
+                }
+
+                open.add(Node.fromLocation(e, target, polledCopy.totalCost()));
+            });
+        }
+    }
+
+    private Stream<Row2<Integer, Integer>> getNeighbours(final Row2<Integer, Integer> polled)
+    {
+        return Stream.of(
+                new Row2<>(polled.a() - 1, polled.b()),
+                new Row2<>(polled.a() + 1, polled.b()),
+                new Row2<>(polled.a(), polled.b() - 1),
+                new Row2<>(polled.a(), polled.b() + 1)
+        )
+//        return IntStream
+//                .range(polled.a() - 1, polled.a() + 2)
+//                .filter(x -> x >= 0 && x < 48)
+//                .boxed()
+//                .map(x -> new Row2<>(x,
+//                        IntStream
+//                                .range(polled.b() - 1, polled.b() + 2)
+//                                .filter(y -> y >= 0 && y < 27)
+//                                .toArray())
+//                )
+//                .flatMap(x ->
+//                        Arrays
+//                                .stream(x.b())
+//                                .mapToObj(y -> new Row2<>(x.a(), y))
+//                )
+                .filter(x -> x.a() >= 0 && x.a() < 48)
+                .filter(x -> x.b() >= 0 && x.b() < 27)
+                .filter(x -> !layout[x.b()][x.a()]);
     }
 }
