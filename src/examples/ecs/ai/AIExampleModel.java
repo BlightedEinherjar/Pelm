@@ -175,13 +175,9 @@ public class AIExampleModel
                     if (!blocked.contains(nextLocation2))
                     {
                         blocked.add(nextLocation2);
-//                        blocked.add(nextLocation);
-//                        blocked.add(position);
 
                         return;
                     }
-
-                    System.out.println("T2");
 
                     shouldReroute.set(true);
                 });
@@ -191,12 +187,9 @@ public class AIExampleModel
                 if (!blocked.contains(nextLocation))
                 {
                     blocked.add(nextLocation);
-//                    blocked.add(position);
 
                     return;
                 }
-
-                System.out.println("T1");
 
                 shouldReroute.set(true);
             });

@@ -1,9 +1,10 @@
 package utils.safe_queue;
 
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public interface SafeDeque<T>
+public interface SafeDeque<T> extends Iterable<T>
 {
     Optional<T> dequeue();
 
@@ -16,7 +17,14 @@ public interface SafeDeque<T>
     @SuppressWarnings("StatementWithEmptyBody")
     default void clear()
     {
-        while (dequeue().isPresent()) { }
+        while (dequeue().isPresent())
+        {
+        }
+    }
+
+    default boolean isEmpty()
+    {
+        return peek().isEmpty();
     }
 
     void push(T t);
@@ -24,4 +32,10 @@ public interface SafeDeque<T>
     Optional<T> pop();
 
     Optional<T> peekLast();
+
+    @SuppressWarnings("NullableProblems")
+    default Iterator<T> iterator()
+    {
+        return stream().iterator();
+    }
 }
