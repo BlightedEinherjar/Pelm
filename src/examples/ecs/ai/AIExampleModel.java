@@ -124,11 +124,43 @@ public class AIExampleModel
                 .registerSystem(Tick.class, this::updatePositions)
                 .registerSystem(Tick.class, this::handleInputs)
                 .registerSystem(Tick.class, this::directEnemy)
+                .registerSystem(Tick.class, this::rerouteEnemies)
                 .registerSystem(Tick.class, this::lookAtPlayer)
                 .registerSystem(Tick.class, this::updateCone)
 
                 .registerSystem(SelectNewWanderLocation.class, this::selectNewWanderLocation)
                 ;
+    }
+
+    private void rerouteEnemies(final Tick tick, final Commands commands)
+    {
+        final var blocked = new HashSet<Row2<Integer, Integer>>();
+
+        for (final var row : commands.query(Queries.query(Route.class, EnemyState.class, Position.class)))
+        {
+            final var route = row.a();
+            final var enemyState = row.b();
+            final var position = pVectorToLocation(row.c());
+
+            final var peeked = enemyState.stateType != EnemyState.StateType.Idle
+                    ? Optional.of(enemyState.searchLocation)
+                    : route.route.peek();
+
+            peeked.ifPresent(nextLocation ->
+            {
+                if (!blocked.contains(nextLocation))
+                {
+                    blocked.add(nextLocation);
+
+                    return;
+                }
+
+                route.route.clear();
+
+                final var newRoute = AStar(position, enemyState.searchLocation, blocked);
+            });
+        }
+
     }
 
     private void showWin(final Draw draw, final Commands commands)
@@ -144,7 +176,7 @@ public class AIExampleModel
         StreamSupport.stream(query.spliterator(), false).filter(x -> x.a().stateType == Wandering).forEach(x ->
         {
             final var destination = selectLocation();
-            AStar(pVectorToLocation(x.c()), destination).ifPresent(route ->
+            AStar(pVectorToLocation(x.c()), destination, Set.<Row2<Integer, Integer>>of()).ifPresent(route ->
             {
                 x.a().searchLocation = destination;
 
@@ -230,7 +262,6 @@ public class AIExampleModel
             {
                 if (vectorsClose(locationToPVector(nextLocation), row.b()))
                 {
-                    System.out.println("Hit!");
                     row.e().route.dequeue();
                     final var nextLocationMaybe = row.e().route.peek();
                     if (nextLocationMaybe.isEmpty()) return;
@@ -244,10 +275,6 @@ public class AIExampleModel
                 {
                     row.c().set(toTarget.normalize().mult(Math.min(AIMaximumSpeedFactor, distance)));
                 }
-
-//                row.c().set(Velocity.zero());
-
-                //.mult(AIMaximumSpeedFactor);
             });
         }
     }
@@ -406,7 +433,7 @@ public class AIExampleModel
         }
     }
 
-    public Optional<List<Row2<Integer, Integer>>> AStar(final Row2<Integer, Integer> current, final Row2<Integer, Integer> target)
+    public Optional<List<Row2<Integer, Integer>>> AStar(final Row2<Integer, Integer> current, final Row2<Integer, Integer> target, final Set<Row2<Integer, Integer>> blocked)
     {
         final Map<Row2<Integer, Integer>, Node> origin = new HashMap<>();
         final PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparing(Node::totalCost));
@@ -455,7 +482,7 @@ public class AIExampleModel
 
             final var polledCopy = polled;
 
-            neighbours.filter(x -> !closed.contains(x)).forEach(e ->
+            neighbours.filter(x -> !blocked.contains(x)).filter(x -> !closed.contains(x)).forEach(e ->
             {
                 final int nextCost = polledCopy.previousCost() + 1;
                 if (!positionScores.containsKey(e) || nextCost < positionScores.get(e))
