@@ -154,7 +154,6 @@ public class AIExampleModel
     private void rerouteEnemies(final Tick tick, final Commands commands)
     {
         final var blocked = new HashSet<Row2<Integer, Integer>>();
-        final var blocked2 = new HashSet<Row2<Integer, Integer>>();
 
         for (final var row : commands.query(Queries.query(Route.class, EnemyState.class, Position.class)))
         {
@@ -162,55 +161,53 @@ public class AIExampleModel
             final var enemyState = row.b();
             final var position = pVectorToLocation(row.c());
 
-            final var peeked = enemyState.stateType != EnemyState.StateType.Idle
-                    ? route.route.peek()
-                    : Optional.of(enemyState.searchLocation);
+            final var peeked = route.route.peek();
+            final AtomicBoolean shouldReroute = new AtomicBoolean(false);
 
             peeked.ifPresent(nextLocation ->
             {
-                final AtomicBoolean reroutedOnTwo = new AtomicBoolean(false);
-
                 route.route.pop();
-                final var peeked2 = enemyState.stateType != EnemyState.StateType.Idle
-                        ? Optional.of(enemyState.searchLocation)
-                        : route.route.peek();
+                final var peeked2 = route.route.peek();
                 route.route.push(nextLocation);
 
                 peeked2.ifPresent(nextLocation2 ->
                 {
-                    if (!blocked2.contains(nextLocation2))
+                    if (!blocked.contains(nextLocation2))
                     {
-                        blocked2.add(nextLocation2);
+                        blocked.add(nextLocation2);
+//                        blocked.add(nextLocation);
+//                        blocked.add(position);
 
                         return;
                     }
 
-                    route.route.clear();
+                    System.out.println("T2");
 
-                    final var newRoute = AStar(position, enemyState.searchLocation, blocked2);
-
-                    newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
-
-                    System.out.println("HIT!");
-
-                    reroutedOnTwo.set(true);
+                    shouldReroute.set(true);
                 });
 
-                if (reroutedOnTwo.get()) return;
+                if (shouldReroute.get()) return;
 
                 if (!blocked.contains(nextLocation))
                 {
                     blocked.add(nextLocation);
+//                    blocked.add(position);
 
                     return;
                 }
 
-                route.route.clear();
+                System.out.println("T1");
 
-                final var newRoute = AStar(position, enemyState.searchLocation, blocked);
-
-                newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
+                shouldReroute.set(true);
             });
+
+            if (!shouldReroute.get()) continue;
+
+            route.route.clear();
+
+            final var newRoute = AStar(position, enemyState.searchLocation, blocked);
+
+            newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
         }
 
     }
@@ -271,11 +268,27 @@ public class AIExampleModel
 
     private void lookAtPlayer(final Tick tick, final Commands commands)
     {
-        final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class));
-        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player ->
+//        final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class));
+//        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player ->
+//        {
+//            for (final var enemy : enemiesQuery)
+//            {
+//                final var to = player.copy().sub(enemy.b());
+//                final var angle = Math.atan2(to.y, to.x);
+//                final var delta = (float) (angle - enemy.a().facing);
+//                final var wrapped = (float) Math.atan2(Math.sin(delta), Math.cos(delta));
+//                final var between = Math.clamp(wrapped, -0.05, 0.05);
+//                enemy.a().facing += (float) between;
+//            }
+//        });
+
+        final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class, Velocity.class));
+        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player2 ->
         {
             for (final var enemy : enemiesQuery)
             {
+                final var player = enemy.b().copy().add(enemy.c());
+
                 final var to = player.copy().sub(enemy.b());
                 final var angle = Math.atan2(to.y, to.x);
                 final var delta = (float) (angle - enemy.a().facing);
