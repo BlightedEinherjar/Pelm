@@ -28,7 +28,6 @@ import static java.awt.event.KeyEvent.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -43,6 +42,8 @@ public class AIExampleModel
     public final Random random = new Random();
     public boolean hasWon = false;
     public PImage wonImage;
+
+    public Set<Row2<Integer, Integer>> globalBlocked = new HashSet<>();
 
     public void setup(final PApplet loader)
     {
@@ -117,15 +118,15 @@ public class AIExampleModel
         entityComponentSystem
                 .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
                 .registerSystem(Draw.class, this::showWin)
-                .registerSystem(Draw.class, this::drawDestinations)
+                .registerSystem(Draw.class, this::drawDebug)
 
                 .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
                 .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
 
-                .registerSystem(Tick.class, this::applyCollisions)
-                .registerSystem(Tick.class, this::updatePositions)
                 .registerSystem(Tick.class, this::handleInputs)
                 .registerSystem(Tick.class, this::directEnemy)
+                .registerSystem(Tick.class, this::applyCollisions)
+                .registerSystem(Tick.class, this::updatePositions)
                 .registerSystem(Tick.class, this::rerouteEnemies)
                 .registerSystem(Tick.class, this::lookAtPlayer)
                 .registerSystem(Tick.class, this::updateCone)
@@ -134,7 +135,7 @@ public class AIExampleModel
                 ;
     }
 
-    private void drawDestinations(final Draw draw, final Commands commands)
+    private void drawDebug(final Draw draw, final Commands commands)
     {
         commands.query(Queries.query(EnemyState.class)).forEach(x ->
         {
@@ -149,60 +150,69 @@ public class AIExampleModel
 
             draw.drawContext().pop();
         });
+
+        globalBlocked.forEach(loc ->
+        {
+            final PVector pVector = locationToPVector(loc);
+
+            draw.drawContext().push();
+
+            draw.drawContext().fill(0, 0);
+            draw.drawContext().stroke(Color.red.getRGB());
+
+            draw.drawContext().rect(pVector.x, pVector.y, 10, 10);
+
+            draw.drawContext().pop();
+        });
     }
 
     private void rerouteEnemies(final Tick tick, final Commands commands)
     {
-        final var blocked = new HashSet<Row2<Integer, Integer>>();
+        globalBlocked.clear();
+        final var query = StreamSupport.stream(commands.query(Queries.query(Route.class, EnemyState.class, Position.class, Velocity.class)).spliterator(), false).toList();
 
-        for (final var row : commands.query(Queries.query(Route.class, EnemyState.class, Position.class)))
+        for (final var row : query)
         {
             final var route = row.a();
             final var enemyState = row.b();
             final var position = pVectorToLocation(row.c());
+            final var velocity = row.d();
 
             final var peeked = route.route.peek();
-            final AtomicBoolean shouldReroute = new AtomicBoolean(false);
 
             peeked.ifPresent(nextLocation ->
             {
-                route.route.pop();
-                final var peeked2 = route.route.peek();
-                route.route.push(nextLocation);
+                final var blocked = new HashSet<Row2<Integer, Integer>>();
 
-                peeked2.ifPresent(nextLocation2 ->
+                for (final var other : query)
                 {
-                    if (!blocked.contains(nextLocation2))
-                    {
-                        blocked.add(nextLocation2);
+                    final var otherPosition = pVectorToLocation(other.c());
+                    if (otherPosition.equals(position)) continue;
 
-                        return;
-                    }
-
-                    shouldReroute.set(true);
-                });
-
-                if (shouldReroute.get()) return;
-
-                if (!blocked.contains(nextLocation))
-                {
-                    blocked.add(nextLocation);
-
-                    return;
+                    blocked.add(otherPosition);
+                    other.a().route.peek().ifPresent(blocked::add);
                 }
 
-                shouldReroute.set(true);
+                globalBlocked.addAll(blocked);
+
+                if (blocked.contains(nextLocation) || blocked.contains(position))
+                {
+                    System.out.println("======================");
+                    System.out.println("Rerouting from::" + route.route);
+
+                    route.route.clear();
+
+                    final Optional<List<Row2<Integer, Integer>>> row2s = AStar(position, enemyState.searchLocation, blocked);
+                    row2s.ifPresent(r ->
+                    {
+                        r.forEach(route.route::enqueue);
+
+                        System.out.println("To::" + route.route);
+                        System.out.println("=====================");
+                    });
+                }
             });
-
-            if (!shouldReroute.get()) continue;
-
-            route.route.clear();
-
-            final var newRoute = AStar(position, enemyState.searchLocation, blocked);
-
-            newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
         }
-
     }
 
     private void showWin(final Draw draw, final Commands commands)

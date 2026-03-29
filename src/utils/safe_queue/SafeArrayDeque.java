@@ -68,4 +68,10 @@ public class SafeArrayDeque<T> implements SafeDeque<T>
     {
         return Stream.generate(this::dequeue).takeWhile(Optional::isPresent).map(Optional::get);
     }
+
+    @Override
+    public String toString()
+    {
+        return queue.toString();
+    }
 }
