@@ -14,4 +14,10 @@ public interface SafeQueue<T>
     void enqueue(T t);
 
     Stream<T> stream();
+
+    @SuppressWarnings("StatementWithEmptyBody")
+    default void clear()
+    {
+        while (dequeue().isPresent()) { }
+    }
 }

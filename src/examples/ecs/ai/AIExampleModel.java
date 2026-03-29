@@ -28,7 +28,6 @@ import static java.awt.event.KeyEvent.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -105,6 +104,7 @@ public class AIExampleModel
                                     new Rectangle(10, 10, new Color(pixel)))))
                                 .with(new Facing(0f))
                                 .with(new EnemyState(Wandering, new Row2<>(xCopy, yCopy)))
+                                .with(new Route())
                                 .with(CellType.Enemy);
                     }
 
@@ -139,12 +139,21 @@ public class AIExampleModel
 
     private void selectNewWanderLocation(final SelectNewWanderLocation selectNewWanderLocation, final Commands commands)
     {
-        System.out.println("Called!!");
-        final var query = commands.query(Queries.query(EnemyState.class));
+        final var query = commands.query(Queries.query(EnemyState.class, Route.class, Position.class));
 
-        StreamSupport.stream(query.spliterator(), false).filter(x -> x.stateType == Wandering).forEach(x ->
+        System.out.println("Called!");
+        StreamSupport.stream(query.spliterator(), false).filter(x -> x.a().stateType == Wandering).forEach(x ->
         {
-            x.searchLocation = selectLocation();
+            System.out.println("Hey!");
+            final var destination = selectLocation();
+            AStar(pVectorToLocation(x.c()), destination).ifPresent(route ->
+            {
+                x.a().searchLocation = destination;
+
+                x.b().route.clear();
+
+                route.forEach(loc -> x.b().route.enqueue(loc));
+            });
         });
     }
 
@@ -208,23 +217,36 @@ public class AIExampleModel
 
     private void directEnemy(final Tick tick, final Commands commands)
     {
-        final var playerQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class).with(Player.class));
+        final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, EnemyState.class, Route.class).without(Player.class));
 
-        final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, EnemyState.class).without(Player.class));
-
-        first(playerQuery).ifPresent(playerData ->
+        for (final var row : enemiesQuery)
         {
-            for (final var row : enemiesQuery)
+            final var peeked = row.e().route.peek();
+
+            peeked.ifPresent(nextLocation ->
             {
-                row.c().add(locationToPVector(row.d().searchLocation).sub(row.b()).normalize().mult(AIMaximumSpeedFactor));
-//                row.c().add(playerData.b().copy().sub(row.b()).normalize().mult(AIMaximumSpeedFactor));
-            }
-        });
+                if (locationToPVector(nextLocation).equals(row.b()))
+                {
+                    System.out.println("Hit!");
+                    row.e().route.dequeue();
+                    final var nextLocationMaybe = row.e().route.peek();
+                    if (nextLocationMaybe.isEmpty()) return;
+                    nextLocation = nextLocationMaybe.get();
+                }
+
+                row.c().set(locationToPVector(nextLocation).sub(row.b()));//.normalize().mult(AIMaximumSpeedFactor);
+            });
+        }
     }
 
     private PVector locationToPVector(final Row2<Integer, Integer> location)
     {
         return new PVector(location.a() * 10, location.b() * 10);
+    }
+
+    private Row2<Integer, Integer> pVectorToLocation(final PVector vector)
+    {
+        return new Row2<>((int)(vector.x / 10), (int)(vector.y / 10));
     }
 
     private void updatePositions(final Tick tick, final Commands commands)
@@ -358,7 +380,7 @@ public class AIExampleModel
         return new Row2<>(entryX / nonStaticVelocity.x, exitX / nonStaticVelocity.x);
     }
 
-    private record Node(Row2<Integer, Integer> position, int neighbourCost, int previousCost)
+    private record Node(Row2<Integer, Integer> position, int heuristic, int previousCost)
     {
         public static Node fromLocation(final Row2<Integer, Integer> location, final Row2<Integer, Integer> target, final int previousCost)
         {
@@ -367,7 +389,7 @@ public class AIExampleModel
 
         public int totalCost()
         {
-            return neighbourCost() + previousCost();
+            return heuristic() + previousCost();
         }
     }
 
@@ -377,12 +399,19 @@ public class AIExampleModel
         final PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparing(Node::totalCost));
         open.add(Node.fromLocation(current, target, 0));
         final Set<Row2<Integer, Integer>> closed = new HashSet<>();
+        final Map<Row2<Integer, Integer>, Integer> positionScores = new HashMap<>();
+        positionScores.put(current, 0);
 
         while (true)
         {
             var polled = open.poll();
 
             if (polled == null) return Optional.empty();
+
+            if (polled.previousCost() > positionScores.getOrDefault(polled.position(), Integer.MAX_VALUE))
+            {
+                continue;
+            }
 
             if (polled.position().equals(target))
             {
@@ -410,12 +439,13 @@ public class AIExampleModel
 
             neighbours.filter(x -> !closed.contains(x)).forEach(e ->
             {
-                if (!origin.containsKey(e) || origin.get(e).totalCost() > polledCopy.totalCost())
+                final int nextCost = polledCopy.previousCost() + 1;
+                if (!positionScores.containsKey(e) || nextCost < positionScores.get(e))
                 {
+                    positionScores.put(e, nextCost);
                     origin.put(e, polledCopy);
+                    open.add(Node.fromLocation(e, target, nextCost));
                 }
-
-                open.add(Node.fromLocation(e, target, polledCopy.totalCost()));
             });
         }
     }
@@ -428,21 +458,6 @@ public class AIExampleModel
                 new Row2<>(polled.a(), polled.b() - 1),
                 new Row2<>(polled.a(), polled.b() + 1)
         )
-//        return IntStream
-//                .range(polled.a() - 1, polled.a() + 2)
-//                .filter(x -> x >= 0 && x < 48)
-//                .boxed()
-//                .map(x -> new Row2<>(x,
-//                        IntStream
-//                                .range(polled.b() - 1, polled.b() + 2)
-//                                .filter(y -> y >= 0 && y < 27)
-//                                .toArray())
-//                )
-//                .flatMap(x ->
-//                        Arrays
-//                                .stream(x.b())
-//                                .mapToObj(y -> new Row2<>(x.a(), y))
-//                )
                 .filter(x -> x.a() >= 0 && x.a() < 48)
                 .filter(x -> x.b() >= 0 && x.b() < 27)
                 .filter(x -> !layout[x.b()][x.a()]);
