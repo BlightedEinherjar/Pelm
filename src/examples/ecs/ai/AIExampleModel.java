@@ -28,6 +28,7 @@ import static java.awt.event.KeyEvent.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -116,6 +117,7 @@ public class AIExampleModel
         entityComponentSystem
                 .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
                 .registerSystem(Draw.class, this::showWin)
+                .registerSystem(Draw.class, this::drawDestinations)
 
                 .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
                 .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
@@ -132,9 +134,27 @@ public class AIExampleModel
                 ;
     }
 
+    private void drawDestinations(final Draw draw, final Commands commands)
+    {
+        commands.query(Queries.query(EnemyState.class)).forEach(x ->
+        {
+            final var position = locationToPVector(x.searchLocation);
+
+            draw.drawContext().push();
+
+            draw.drawContext().fill(0, 0);
+            draw.drawContext().stroke(Color.green.getRGB());
+
+            draw.drawContext().rect(position.x, position.y, 10, 10);
+
+            draw.drawContext().pop();
+        });
+    }
+
     private void rerouteEnemies(final Tick tick, final Commands commands)
     {
         final var blocked = new HashSet<Row2<Integer, Integer>>();
+        final var blocked2 = new HashSet<Row2<Integer, Integer>>();
 
         for (final var row : commands.query(Queries.query(Route.class, EnemyState.class, Position.class)))
         {
@@ -143,11 +163,41 @@ public class AIExampleModel
             final var position = pVectorToLocation(row.c());
 
             final var peeked = enemyState.stateType != EnemyState.StateType.Idle
-                    ? Optional.of(enemyState.searchLocation)
-                    : route.route.peek();
+                    ? route.route.peek()
+                    : Optional.of(enemyState.searchLocation);
 
             peeked.ifPresent(nextLocation ->
             {
+                final AtomicBoolean reroutedOnTwo = new AtomicBoolean(false);
+
+                route.route.pop();
+                final var peeked2 = enemyState.stateType != EnemyState.StateType.Idle
+                        ? Optional.of(enemyState.searchLocation)
+                        : route.route.peek();
+                route.route.push(nextLocation);
+
+                peeked2.ifPresent(nextLocation2 ->
+                {
+                    if (!blocked2.contains(nextLocation2))
+                    {
+                        blocked2.add(nextLocation2);
+
+                        return;
+                    }
+
+                    route.route.clear();
+
+                    final var newRoute = AStar(position, enemyState.searchLocation, blocked2);
+
+                    newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
+
+                    System.out.println("HIT!");
+
+                    reroutedOnTwo.set(true);
+                });
+
+                if (reroutedOnTwo.get()) return;
+
                 if (!blocked.contains(nextLocation))
                 {
                     blocked.add(nextLocation);
@@ -158,6 +208,8 @@ public class AIExampleModel
                 route.route.clear();
 
                 final var newRoute = AStar(position, enemyState.searchLocation, blocked);
+
+                newRoute.ifPresent(r -> r.forEach(route.route::enqueue));
             });
         }
 
@@ -171,12 +223,14 @@ public class AIExampleModel
 
     private void selectNewWanderLocation(final SelectNewWanderLocation selectNewWanderLocation, final Commands commands)
     {
+        final var seenLocations = new HashSet<Row2<Integer, Integer>>();
         final var query = commands.query(Queries.query(EnemyState.class, Route.class, Position.class));
 
         StreamSupport.stream(query.spliterator(), false).filter(x -> x.a().stateType == Wandering).forEach(x ->
         {
-            final var destination = selectLocation();
-            AStar(pVectorToLocation(x.c()), destination, Set.<Row2<Integer, Integer>>of()).ifPresent(route ->
+            final var destination = selectLocation(seenLocations);
+            seenLocations.add(destination);
+            AStar(pVectorToLocation(x.c()), destination, Set.of()).ifPresent(route ->
             {
                 x.a().searchLocation = destination;
 
@@ -187,16 +241,18 @@ public class AIExampleModel
         });
     }
 
-    private Row2<Integer, Integer> selectLocation()
+    private Row2<Integer, Integer> selectLocation(final HashSet<Row2<Integer, Integer>> seenLocations)
     {
         while (true)
         {
             final var x = random.nextInt(48);
             final var y = random.nextInt(27);
 
-            if (layout[y][x]) continue;
+            final var loc = new Row2<>(x, y);
 
-            return new Row2<>(x, y);
+            if (layout[y][x] || seenLocations.stream().anyMatch(seen -> Math.abs(seen.a() - x) <= 2 && Math.abs(seen.b() - y) <= 2)) continue;
+
+            return loc;
         }
     }
 
