@@ -30,7 +30,7 @@ public class ArrayQueue<T> implements SafeQueue<T>
             return Optional.empty();
         }
 
-        return Optional.of(queue.poll());
+        return Optional.of(queue.peek());
     }
 
     @Override

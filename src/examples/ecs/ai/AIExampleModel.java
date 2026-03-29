@@ -141,10 +141,8 @@ public class AIExampleModel
     {
         final var query = commands.query(Queries.query(EnemyState.class, Route.class, Position.class));
 
-        System.out.println("Called!");
         StreamSupport.stream(query.spliterator(), false).filter(x -> x.a().stateType == Wandering).forEach(x ->
         {
-            System.out.println("Hey!");
             final var destination = selectLocation();
             AStar(pVectorToLocation(x.c()), destination).ifPresent(route ->
             {
@@ -215,6 +213,11 @@ public class AIExampleModel
         return Optional.empty();
     }
 
+    private boolean vectorsClose(final PVector left, final PVector right)
+    {
+        return Math.abs(left.x - right.x) < 0.1 && Math.abs(left.y - right.y) < 0.1;
+    }
+
     private void directEnemy(final Tick tick, final Commands commands)
     {
         final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, EnemyState.class, Route.class).without(Player.class));
@@ -225,7 +228,7 @@ public class AIExampleModel
 
             peeked.ifPresent(nextLocation ->
             {
-                if (locationToPVector(nextLocation).equals(row.b()))
+                if (vectorsClose(locationToPVector(nextLocation), row.b()))
                 {
                     System.out.println("Hit!");
                     row.e().route.dequeue();
@@ -234,7 +237,17 @@ public class AIExampleModel
                     nextLocation = nextLocationMaybe.get();
                 }
 
-                row.c().set(locationToPVector(nextLocation).sub(row.b()));//.normalize().mult(AIMaximumSpeedFactor);
+                final PVector toTarget = locationToPVector(nextLocation).copy().sub(row.b());
+                final float distance = toTarget.mag();
+
+                if (distance > 0)
+                {
+                    row.c().set(toTarget.normalize().mult(Math.min(AIMaximumSpeedFactor, distance)));
+                }
+
+//                row.c().set(Velocity.zero());
+
+                //.mult(AIMaximumSpeedFactor);
             });
         }
     }
@@ -423,7 +436,12 @@ public class AIExampleModel
                 {
                     final var from = origin.get(polled.position());
 
-                    if (from == null) return Optional.of(nodes.reversed());
+                    if (from == null)
+                    {
+                        final var reversed = nodes.reversed();
+                        reversed.removeFirst();
+                        return Optional.of(reversed);
+                    }
 
                     nodes.add(from.position());
 
