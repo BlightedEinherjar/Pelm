@@ -21,6 +21,7 @@ import processing.core.PApplet;
 import processing.core.PImage;
 import processing.core.PVector;
 import utils.row.Row2;
+import utils.row.Row3;
 
 import static examples.ecs.ai.EnemyState.StateType.Wandering;
 import static java.awt.event.KeyEvent.*;
@@ -97,18 +98,18 @@ public class AIExampleModel
                             .with(CellType.Player);
                     }
 
-                    if (red >= 0.7)
-                    {
-                        return builder
-                                .with(Velocity.zero())
-                                .with(new Composite(List.of(
-                                    new Cone(40f, (float) Math.toRadians(90d), 0f, new Color(255, 0, 0, 60), new PVector(5, 5)),
-                                    new Rectangle(10, 10, new Color(pixel)))))
-                                .with(new Facing(0f))
-                                .with(new EnemyState(Wandering, new Row2<>(xCopy, yCopy)))
-                                .with(new Route())
-                                .with(CellType.Enemy);
-                    }
+//                    if (red >= 0.7)
+//                    {
+//                        return builder
+//                                .with(Velocity.zero())
+//                                .with(new Composite(List.of(
+//                                    new Cone(40f, (float) Math.toRadians(90d), 0f, new Color(255, 0, 0, 60), new PVector(5, 5)),
+//                                    new Rectangle(10, 10, new Color(pixel)))))
+//                                .with(new Facing(0f))
+//                                .with(new EnemyState(Wandering, new Row2<>(xCopy, yCopy)))
+//                                .with(new Route())
+//                                .with(CellType.Enemy);
+//                    }
 
                     return builder;
                 });
@@ -367,7 +368,7 @@ public class AIExampleModel
 
         for (final var row : query)
         {
-            row.a().add(row.b());
+//            row.a().add(row.b());
             row.b().set(Velocity.zero());
         }
     }
@@ -393,78 +394,133 @@ public class AIExampleModel
 
     public void applyCollisions(final Tick ignoredMessage, final Commands commands)
     {
-        final var statics = commands.query(Queries.query(Collider2D.class, Position.class, CellType.class));
+        System.out.println("RUN!");
+
+        final var statics = StreamSupport.stream(commands.query(Queries.query(Collider2D.class, Position.class, CellType.class)).spliterator(), false).toList();
 
         final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, CellType.class));
 
         for (final var nonStaticRow : nonStatics)
         {
-            final var velocitySubtractionAccumulator = new PVector();
+            System.out.println("M!");
 
-            final var nonStaticCollider = nonStaticRow.a();
-            final var nonStaticPosition = nonStaticRow.b();
-            final var nonStaticVelocity = nonStaticRow.c();
+            final var removed = new HashSet<Integer>();
+            float remainingTime = 1.0f;
 
-            final var nonStaticCoordinates = rectangleCoordinates(nonStaticPosition, nonStaticCollider);
-
-            for (final var staticsRow : statics)
+            while (true)
             {
-                final var staticCollider = staticsRow.a();
-                final var staticPosition = staticsRow.b();
+                final var nonStaticCollider = nonStaticRow.a();
+                final var nonStaticPosition = nonStaticRow.b();
+                final var nonStaticVelocity = nonStaticRow.c();
 
-                final var staticCoordinates = rectangleCoordinates(staticPosition, staticCollider);
+                final var nonStaticCoordinates = rectangleCoordinates(nonStaticPosition, nonStaticCollider);
 
-                final var right = nonStaticVelocity.x > 0;
-                final var down = nonStaticVelocity.y > 0;
+                Optional<Row3<Integer, Float, PVector>> lowest = Optional.empty();
+                for (int i = 0; i < statics.size(); i++)
+                {
+                    if (removed.contains(i)) continue;
 
-                final var entryExitX = getDistancesX(right, staticCoordinates, nonStaticCoordinates);
-                final var entryExitY = getDistancesY(down, staticCoordinates, nonStaticCoordinates);
+                    final var staticsRow = statics.get(i);
+                    final var staticCollider = staticsRow.a();
+                    final var staticPosition = staticsRow.b();
 
-                final var entryX = entryExitX.a();
-                final var entryY = entryExitY.a();
+                    final var staticCoordinates = rectangleCoordinates(staticPosition, staticCollider);
 
-                final var exitX = entryExitX.b();
-                final var exitY = entryExitY.b();
+                    final var right = nonStaticVelocity.x > 0;
+                    final var down = nonStaticVelocity.y > 0;
 
-                final var entryExitTimeX = getEntryExitTimesX(nonStaticVelocity, nonStaticCoordinates, staticCoordinates, entryX, exitX);
+                    final var entryExitX = getDistancesX(right, staticCoordinates, nonStaticCoordinates);
+                    final var entryExitY = getDistancesY(down, staticCoordinates, nonStaticCoordinates);
 
-                final var entryTimeX = entryExitTimeX.a();
-                final var exitTimeX = entryExitTimeX.b();
+                    final var entryX = entryExitX.a();
+                    final var entryY = entryExitY.a();
 
-                final var entryExitTimeY = getEntryExitTimesY(nonStaticVelocity, nonStaticCoordinates, staticCoordinates, entryY, exitY);
+                    final var exitX = entryExitX.b();
+                    final var exitY = entryExitY.b();
 
-                final var entryTimeY = entryExitTimeY.a();
-                final var exitTimeY = entryExitTimeY.b();
+                    final var entryExitTimeX = getEntryExitTimesX(nonStaticVelocity, nonStaticCoordinates, staticCoordinates, entryX, exitX);
 
-                final var entryTime = Math.max(entryTimeX, entryTimeY);
-                final var exitTime  = Math.min(exitTimeX, exitTimeY);
+                    final var entryTimeX = entryExitTimeX.a();
+                    final var exitTimeX = entryExitTimeX.b();
 
-                if (entryTime > exitTime
-                        || entryTimeX > exitTimeY
-                        || entryTimeY > exitTimeX
-                        || entryTime < 0.0f
-                        || entryTime > 1.0f
-                ) continue;
+                    final var entryExitTimeY = getEntryExitTimesY(nonStaticVelocity, nonStaticCoordinates, staticCoordinates, entryY, exitY);
 
-                if (nonStaticRow.d() == CellType.Player && staticsRow.c() == CellType.Goal) this.hasWon = true;
+                    final var entryTimeY = entryExitTimeY.a();
+                    final var exitTimeY = entryExitTimeY.b();
 
-                final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
+                    final var entryTime = Math.max(entryTimeX, entryTimeY);
+                    final var exitTime = Math.min(exitTimeX, exitTimeY);
 
-                final var dot = nonStaticVelocity.dot(normal);
+                    if (entryTime > exitTime
+                            || entryTimeX > exitTimeY
+                            || entryTimeY > exitTimeX
+                            || entryTime < 0.0f
+                            || entryTime > 1.0f
+                    ) continue;
 
-                nonStaticVelocity.sub(
-                        normal.mult(dot));
+                    if (nonStaticRow.d() == CellType.Player && staticsRow.c() == CellType.Goal) this.hasWon = true;
+
+                    final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
+
+//                    System.out.println(normal);
+
+                    lowest = Optional.of(new Row3<>(i, entryTime, normal));//.mult(dot)));
+
+//                nonStaticVelocity.sub(normal.mult(dot));
 
 //                velocitySubtractionAccumulator.add(normal.copy().mult(dot).mult(exitTime - entryTime));
 //                velocitySubtractionAccumulator.add(normal.copy().mult(dot).mult(1f));
+                }
 
+                if (lowest.isEmpty())
+                {
+                    nonStaticPosition.add(nonStaticVelocity.copy().mult(remainingTime));
+
+//                    nonStaticPosition.add(nonStaticVelocity.copy().mult(remainingTime));
+                    break;
+                }
+
+                final var l = lowest.get();
+
+                final var entryTime = l.b();
+                final var normal = l.c();
+                final var index = l.a();
+
+                if (removed.size() == 1)
+                {
+                    System.out.println();
+                }
+
+                final var dot = nonStaticVelocity.dot(normal);
+
+                System.out.println(nonStaticPosition);
+
+                nonStaticPosition.add(nonStaticVelocity.copy().mult(entryTime * remainingTime));// * dot));
+
+                if (nonStaticPosition.y < 10)
+                {
+                    System.out.println();
+                }
+
+                if (dot < 0) {
+                    nonStaticVelocity.sub(normal.copy().mult(dot));
+                }
+
+                remainingTime *= (1.0f - entryTime);
+
+//                nonStaticPosition.add(normal.copy().mult(0.001f));
+
+//                nonStaticPosition.add(nonStaticVelocity.copy().mult(remainingTime));
+
+                removed.add(lowest.get().a());
+
+//                break;
             }
-
-            nonStaticVelocity.sub(velocitySubtractionAccumulator);
+//            nonStaticVelocity.sub();
         }
     }
 
-    private static Row2<Float, Float> getEntryExitTimesY(final Velocity nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final Float entryY, final Float exitY)
+    private static Row2<Float, Float> getEntryExitTimesY(final PVector nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final Float entryY, final Float exitY)
     {
         if (nonStaticVelocity.y == 0)
         {
@@ -479,7 +535,7 @@ public class AIExampleModel
         return new Row2<>(entryTimeY, exitTimeY);
     }
 
-    private static Row2<Float, Float> getEntryExitTimesX(final Velocity nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final float entryX, final float exitX)
+    private static Row2<Float, Float> getEntryExitTimesX(final PVector nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final float entryX, final float exitX)
     {
         if (nonStaticVelocity.x == 0)
         {

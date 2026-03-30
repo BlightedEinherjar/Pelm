@@ -147,7 +147,7 @@ public enum Utils
     public static Row2<Float, Float> getDistancesY(final boolean movingDown, final RectangleCoordinates staticCoordinates, final RectangleCoordinates nonStaticCoordinates)
     {
         final float topBottom = staticCoordinates.topLeft().y - nonStaticCoordinates.bottomLeft().y;
-        final float bottomTop = staticCoordinates.bottomLeft().y - nonStaticCoordinates.topRight().y;
+        final float bottomTop = staticCoordinates.bottomLeft().y - nonStaticCoordinates.topLeft().y;
 
         if (movingDown)
         {
