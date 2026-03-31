@@ -50,13 +50,14 @@ public class AIExample extends Pelm<AIExampleModel, AIExampleMessage>
 
     private final TimerSubscription<AIExampleMessage> ticker = new TimerSubscription<>(millis(), 15, Tick::new);
     private final TimerSubscription<AIExampleMessage> selectNewWanderLocation = new TimerSubscription<>(millis(), 6000, SelectNewWanderLocation::new);
+    private final TimerSubscription<AIExampleMessage> rerouteEnemiesToPlayer = new TimerSubscription<>(millis(), 100, RerouteEnemiesToPlayer::new);
     private final ButtonPressedSubscription<AIExampleMessage> keyPressSubscription = new ButtonPressedSubscription<>(key -> new DirectionPressed(key.getKeyCode()));
     private final FunctionSubscription<KeyEvent, AIExampleMessage> keyReleaseSubscription = FunctionSubscription.create(SubscriptionCategory.KeyReleased, (key -> new DirectionReleased(key.getKeyCode())));
 
     @Override
     protected Stream<? extends Subscription<AIExampleMessage>> subscriptions(final AIExampleModel aiExampleModel)
     {
-        return Stream.of(ticker, keyPressSubscription, keyReleaseSubscription, selectNewWanderLocation);
+        return Stream.of(ticker, keyPressSubscription, keyReleaseSubscription, selectNewWanderLocation, rerouteEnemiesToPlayer);
     }
 
     @Override

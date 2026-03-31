@@ -15,6 +15,6 @@ public class EnemyState
 
     public enum StateType
     {
-        Idle, Wandering
+        Idle, Hunt, Wandering
     }
 }

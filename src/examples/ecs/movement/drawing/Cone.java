@@ -16,7 +16,7 @@ public final class Cone implements Shape
     public Color fill;
     public PVector centreOffset;
 
-    public Cone(float length, float angle, float facing, Color fill, PVector centreOffset)
+    public Cone(final float length, final float angle, final float facing, final Color fill, final PVector centreOffset)
     {
         this.length = length;
         this.angle = angle;
@@ -72,11 +72,11 @@ public final class Cone implements Shape
     }
 
     @Override
-    public boolean equals(Object obj)
+    public boolean equals(final Object obj)
     {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (Cone) obj;
+        final var that = (Cone) obj;
         return Float.floatToIntBits(this.length) == Float.floatToIntBits(that.length) &&
                 Float.floatToIntBits(this.angle) == Float.floatToIntBits(that.angle) &&
                 Float.floatToIntBits(this.facing) == Float.floatToIntBits(that.facing) &&

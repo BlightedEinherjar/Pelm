@@ -6,16 +6,13 @@ import entity_component_system.components.space.Position;
 import entity_component_system.components.space.Velocity;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
-import examples.ecs.ai.messages.DirectionPressed;
-import examples.ecs.ai.messages.DirectionReleased;
-import examples.ecs.ai.messages.SelectNewWanderLocation;
+import examples.ecs.ai.messages.*;
 import examples.ecs.movement.components.Player;
 import examples.ecs.movement.drawing.*;
 import examples.ecs.movement.drawing.Composite;
 import examples.ecs.movement.drawing.Rectangle;
 import examples.ecs.movement.drawing.Shape;
 import examples.ecs.movement.messages.Draw;
-import examples.ecs.ai.messages.Tick;
 import examples.ecs.movement.physics.collision.Collider2D;
 import processing.core.PApplet;
 import processing.core.PImage;
@@ -30,6 +27,7 @@ import static java.awt.event.KeyEvent.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -37,19 +35,23 @@ import static examples.ecs.movement.Utils.*;
 
 public class AIExampleModel
 {
-    private static final float AIMaximumSpeedFactor = 0.8f;
+    private static final float AIMaximumSpeedFactor = 1.5f;
+    public static final float ViewConeRadians = (float) Math.toRadians(90d);
+    public static final float ViewConeLength = 40f;
     public final Set<Integer> keys = new HashSet<>();
     public final EntityComponentSystem entityComponentSystem = new EntityComponentSystem();
     public final boolean[][] layout = new boolean[27][48];
     public final Random random = new Random();
-    public boolean hasWon = false;
+    private GameState gameState = GameState.Playing;
     public PImage wonImage;
+    public PImage lostImage;
 
     public Set<Row2<Integer, Integer>> globalBlocked = new HashSet<>();
 
     public void setup(final PApplet loader)
     {
         wonImage = loader.loadImage("examples/ecs/examples/ai/Won.png");
+        lostImage = loader.loadImage("examples/ecs/examples/ai/Lost.png");
 
         final var levelImage = loader.loadImage("examples/ecs/examples/ai/Level.png");
 
@@ -104,7 +106,7 @@ public class AIExampleModel
                         return builder
                                 .with(Velocity.zero())
                                 .with(new Composite(List.of(
-                                    new Cone(40f, (float) Math.toRadians(90d), 0f, new Color(255, 0, 0, 60), new PVector(5, 5)),
+                                    new Cone(ViewConeLength, ViewConeRadians, 0f, new Color(255, 0, 0, 60), new PVector(5, 5)),
                                     new Rectangle(10, 10, new Color(pixel)))))
                                 .with(new Facing(0f))
                                 .with(new EnemyState(Wandering, new Row2<>(xCopy, yCopy)))
@@ -119,22 +121,179 @@ public class AIExampleModel
 
         entityComponentSystem
                 .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
-                .registerSystem(Draw.class, this::showWin)
-                .registerSystem(Draw.class, this::drawDebug)
+                .registerSystem(Draw.class, this::showWinLose)
+//                .registerSystem(Draw.class, this::drawDebug)
 
                 .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
                 .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
 
+                .registerSystem(Tick.class, this::transitionStates)
                 .registerSystem(Tick.class, this::handleInputs)
                 .registerSystem(Tick.class, this::directEnemy)
+                .registerSystem(Tick.class, this::lookEnemies)
                 .registerSystem(Tick.class, this::applyCollisions)
                 .registerSystem(Tick.class, this::updatePositions)
                 .registerSystem(Tick.class, this::rerouteEnemies)
-                .registerSystem(Tick.class, this::lookAtPlayer)
                 .registerSystem(Tick.class, this::updateCone)
 
                 .registerSystem(SelectNewWanderLocation.class, this::selectNewWanderLocation)
+                .registerSystem(RerouteEnemiesToPlayer.class, this::rerouteEnemiesToPlayer)
                 ;
+    }
+
+    private void rerouteEnemiesToPlayer(final RerouteEnemiesToPlayer rerouteEnemiesToPlayer, final Commands commands)
+    {
+        final var query = StreamSupport.stream(commands.query(Queries.query(Position.class, EnemyState.class, Route.class)).spliterator(), false).filter(x -> x.b().stateType == EnemyState.StateType.Hunt).map(x -> new Row3<>(pVectorToLocation(x.a()), x.b(), x.c())).toList();
+
+        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player ->
+        {
+            final var playerLocation = pVectorToLocation(player);
+
+            for (final var row : query)
+            {
+                AStar(row.a(), playerLocation, Set.of()).ifPresent(newRoute ->
+                {
+                    row.c().route.clear();
+
+                    newRoute.forEach(row.c().route::enqueue);
+                });
+            }
+        });
+    }
+
+    private void transitionStates(final Tick tick, final Commands commands)
+    {
+        final var query = commands.query(Queries.query(EnemyState.class, Position.class, Facing.class, Collider2D.class));
+
+        final var cells = StreamSupport.stream(commands.query(Queries.query(Position.class, Collider2D.class, CellType.class)).spliterator(), false).toList();
+
+        for (final var row : query)
+        {
+            if (row.a().stateType != EnemyState.StateType.Hunt && detects(row.b(), row.d(), row.c().facing, cells, CellType.Player))
+            {
+                System.out.println("FOUND!!!");
+
+                detects(row.b(), row.d(), row.c().facing, cells, CellType.Player);
+
+                row.a().stateType = EnemyState.StateType.Hunt;
+
+                row.a().searchLocation = pVectorToLocation(row.b());
+
+                continue;
+            }
+
+//            if (row.a().stateType == Wandering && row.a().searchLocation.equals(pVectorToLocation(row.b())))
+//            {
+//                row.a().stateType = EnemyState.StateType.Idle;
+//            }
+        }
+    }
+
+    public static PVector fromRadians(final double radians)
+    {
+        return new PVector((float) Math.cos(radians), (float) Math.sin(radians));
+    }
+
+    public boolean hasWon()
+    {
+        return gameState == GameState.Won;
+    }
+
+    public boolean hasLost()
+    {
+        return gameState == GameState.Lost;
+    }
+
+    record Line(PVector origin, PVector direction) { }
+
+    private boolean detects(final Position b, final Collider2D collider, final float facing, final List<Row3<Position, Collider2D, CellType>> cells, final CellType targetType)
+    {
+        final var origin = b.copy().add(new PVector(collider.width, collider.height).mult(0.5f));
+        final var lines =
+                IntStream
+                        .range(-2, 3)
+                        .mapToDouble(i -> facing + i * ViewConeRadians / 4)
+                        .mapToObj(AIExampleModel::fromRadians)
+                        .map(direction -> new Line(origin, direction))
+                        .toList();
+
+        return lines
+                .stream()
+                .anyMatch(
+                        line ->
+                                cells
+                                        .stream()
+                                        .map(cell -> new Row2<>(cell, getDistance(line, cell.a(), cell.b())
+                                                .orElse(Double.POSITIVE_INFINITY))).filter(x -> x.b() <= ViewConeLength).min(Comparator.comparingDouble(Row2::b)).map(x -> x.a().c().equals(targetType)).orElse(false));
+    }
+
+    private Optional<Double> getDistance(final Line line, final Position position, final Collider2D collider)
+    {
+        final var coordinates = rectangleCoordinates(position, collider);
+
+        final var x1x2 = getXLineDistances(line, coordinates);
+
+        if (x1x2.isEmpty()) return Optional.empty();
+
+        final var x1 = x1x2.get().a();
+        final var x2 = x1x2.get().b();
+
+        final var lesserX = Math.min(x1, x2);
+        final var greaterX = Math.max(x1, x2);
+
+        final var y1y2 = getYLineDistances(line, coordinates);
+
+        if (y1y2.isEmpty()) return Optional.empty();
+
+        final var y1 = y1y2.get().a();
+        final var y2 = y1y2.get().b();
+
+        final var lesserY = Math.min(y1, y2);
+        final var greaterY = Math.max(y1, y2);
+
+        final var entry = Math.max(lesserX, lesserY);
+
+        if (entry < 0) return Optional.empty();
+
+        final var exit = Math.min(greaterX, greaterY);
+
+        if (exit < entry) return Optional.empty();
+
+        return Optional.of((double) (entry * line.direction().mag()));
+    }
+
+    private Optional<Row2<Float, Float>> getXLineDistances(final Line line, final RectangleCoordinates coordinates)
+    {
+        if (line.direction().x == 0)
+        {
+            if (line.origin().x < coordinates.minimumX() || line.origin().x > coordinates.maximumX()) return Optional.empty();
+
+            final var x1 = Float.NEGATIVE_INFINITY;
+            final var x2 = Float.POSITIVE_INFINITY;
+
+            return Optional.of(new Row2<>(x1, x2));
+        }
+
+        final var x1 = (coordinates.minimumX() - line.origin().x) / line.direction().x;
+
+        final var x2 = (coordinates.maximumX() - line.origin().x) / line.direction().x;
+
+        return Optional.of(new Row2<>(x1, x2));
+    }
+
+    private Optional<Row2<Float, Float>> getYLineDistances(final Line line, final RectangleCoordinates coordinates)
+    {
+        if (line.direction().y == 0)
+        {
+            if (line.origin().y < coordinates.minimumY() || line.origin().y > coordinates.maximumY()) return Optional.empty();
+
+            return Optional.of(new Row2<>(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY));
+        }
+
+        final var y1 = (coordinates.minimumY() - line.origin().y) / line.direction().y;
+        final var y2 = (coordinates.maximumY() - line.origin().y) / line.direction().y;
+
+        return Optional.of(new Row2<>(y1, y2));
     }
 
     private void drawDebug(final Draw draw, final Commands commands)
@@ -234,9 +393,12 @@ public class AIExampleModel
         }
     }
 
-    private void showWin(final Draw draw, final Commands commands)
+    private void showWinLose(final Draw draw, final Commands commands)
     {
-        if (hasWon)
+        if (hasLost())
+            draw.drawContext().image(lostImage, 0, 0, 480, 270);
+
+        if (hasWon())
             draw.drawContext().image(wonImage, 0, 0, 480, 270);
     }
 
@@ -275,6 +437,32 @@ public class AIExampleModel
         }
     }
 
+    private int countNeighbours(final Row2<Integer, Integer> location)
+    {
+        final var x = location.a();
+        final var y = location.b();
+
+        final var xChecks = IntStream.range(x - 1, x + 2);
+        final var yChecks = IntStream.range(y - 1, y + 2);
+
+        final var filteredXChecks = xChecks.filter(i -> i >= 0 && i < 48).toArray();
+        final var filteredYChecks = yChecks.filter(i -> i >= 0 && i < 27);
+
+        return filteredYChecks.map(yCheck ->
+        {
+            int total = 0;
+
+            for (final int xCheck : filteredXChecks)
+            {
+                if (yCheck == y && xCheck == x) continue;
+
+                if (layout[yCheck][xCheck]) total++;
+            }
+
+            return total;
+        }).sum();
+    }
+
     private void updateCone(final Tick tick, final Commands commands)
     {
         final var query = commands.query(Queries.query(Facing.class, Shape.class));
@@ -283,12 +471,14 @@ public class AIExampleModel
         {
             if (row.b() instanceof final Composite composite)
             {
+//                System.out.println(row.a().facing);
+
                 composite.children().stream().filter(x -> x instanceof Cone).map(x -> (Cone) x).forEach(cone -> cone.facing = row.a().facing);
             }
         }
     }
 
-    private void lookAtPlayer(final Tick tick, final Commands commands)
+    private void lookEnemies(final Tick tick, final Commands commands)
     {
 //        final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class));
 //        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player ->
@@ -305,20 +495,22 @@ public class AIExampleModel
 //        });
 
         final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class, Velocity.class));
-        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player2 ->
+//        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player2 ->
         {
             for (final var enemy : enemiesQuery)
             {
-                final var player = enemy.b().copy().add(enemy.c());
+                final var next = enemy.b().copy().add(enemy.c());
 
-                final var to = player.copy().sub(enemy.b());
+                if (enemy.c().mag() <= 0.01f) next.mult(-1f);
+
+                final var to = next.copy().sub(enemy.b());
                 final var angle = Math.atan2(to.y, to.x);
                 final var delta = (float) (angle - enemy.a().facing);
                 final var wrapped = (float) Math.atan2(Math.sin(delta), Math.cos(delta));
                 final var between = Math.clamp(wrapped, -0.05, 0.05);
                 enemy.a().facing += (float) between;
             }
-        });
+        }//);
     }
 
     public static float angleBetween(final PVector first, final PVector second)
@@ -412,16 +604,12 @@ public class AIExampleModel
 
     public void applyCollisions(final Tick ignoredMessage, final Commands commands)
     {
-        System.out.println("RUN!");
-
         final var statics = StreamSupport.stream(commands.query(Queries.query(Collider2D.class, Position.class, CellType.class)).spliterator(), false).toList();
 
         final var nonStatics = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, CellType.class));
 
         for (final var nonStaticRow : nonStatics)
         {
-            System.out.println("M!");
-
             final var removed = new HashSet<Integer>();
             float remainingTime = 1.0f;
 
@@ -476,7 +664,29 @@ public class AIExampleModel
                             || entryTime > 1.0f
                     ) continue;
 
-                    if (nonStaticRow.d() == CellType.Player && staticsRow.c() == CellType.Goal) this.hasWon = true;
+                    if (nonStaticRow.d() == CellType.Player)
+                    {
+                        if (staticsRow.c() == CellType.Goal && !hasLost())
+                        {
+                            this.gameState = GameState.Won;
+
+                            return;
+                        }
+
+                        if (staticsRow.c() == CellType.Enemy)
+                        {
+                            this.gameState = GameState.Lost;
+
+                            return;
+                        }
+                    }
+
+                    if (nonStaticRow.d() == CellType.Enemy && staticsRow.c() == CellType.Player)
+                    {
+                        this.gameState = GameState.Lost;
+
+                        return;
+                    }
 
                     final var normal = getSweptAABBNormal(entryTimeX, entryTimeY, right, down);
 
