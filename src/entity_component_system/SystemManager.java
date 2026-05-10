@@ -34,6 +34,14 @@ public class SystemManager
         }
     }
 
+    // I am starting to wish I used a scheduling system rather than a messaging system for this
+    // Pretty sure I would wish the other way if that were the case though so eh.
+    // Function queries are annoying in Java so this is just going to use my Command query system instead
+    public void triggerOnce(final Consumer<Commands> system)
+    {
+        system.accept(commands);
+    }
+
     public <TMessage, TQuery> void registerSystem(
             final Class<TMessage> messageClass,
             final Consumer3<TMessage, Commands, TQuery> system,

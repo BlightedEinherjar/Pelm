@@ -100,8 +100,6 @@ public abstract class Pelm<TModel, TMessage> extends PApplet
     public void mousePressed(final MouseEvent event) {
         super.mousePressed(event);
 
-        System.out.println("Pressed!");
-
         this
                 .subscriptionManager
                 .activeOfCategory(SubscriptionCategory.MousePressed)

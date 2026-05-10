@@ -5,6 +5,7 @@ import processing.core.PApplet;
 import processing.core.PImage;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -65,6 +66,19 @@ public class AssetServer
         return (Handle<T>) handleMap.computeIfAbsent(dataPath, _ ->
         {
             final LazyHandle<T> handle = new LazyHandle<>(() -> func.apply(dataPath));
+
+            handleListMap.computeIfAbsent(type, _ -> new ArrayList<>()).add(handle);
+
+            return handle;
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Handle<T> loadImmediateWith(final Class<T> type, final BiFunction<String, PApplet, T> func, final String dataPath)
+    {
+        return (Handle<T>) handleMap.computeIfAbsent(dataPath, _ ->
+        {
+            final  ImmediateHandle<T> handle = new ImmediateHandle<>(func.apply(dataPath, loader));
 
             handleListMap.computeIfAbsent(type, _ -> new ArrayList<>()).add(handle);
 

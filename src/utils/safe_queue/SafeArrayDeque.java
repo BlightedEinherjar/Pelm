@@ -9,7 +9,18 @@ import java.util.stream.Stream;
 
 public class SafeArrayDeque<T> implements SafeDeque<T>
 {
-    private final ArrayDeque<T> queue = new ArrayDeque<>();
+    private final ArrayDeque<T> queue;
+    private SafeArrayDeque(final Iterable<T> queue)
+    {
+        this.queue = new ArrayDeque<>();
+
+        queue.forEach(this::enqueue);
+    }
+
+    public SafeArrayDeque()
+    {
+        this(new ArrayDeque<>());
+    }
 
     @Override
     public Optional<T> dequeue()
@@ -59,6 +70,14 @@ public class SafeArrayDeque<T> implements SafeDeque<T>
         if (queue.isEmpty()) return Optional.empty();
 
         return Optional.of(queue.peekLast());
+    }
+
+    @Override
+    public SafeDeque<T> copy()
+    {
+        this.queue.clone();
+
+        return new SafeArrayDeque<>(queue);
     }
 
     // Empties the queue as well, just for fun.

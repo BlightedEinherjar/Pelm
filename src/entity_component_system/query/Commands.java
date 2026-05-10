@@ -2,8 +2,10 @@ package entity_component_system.query;
 
 import entity_component_system.EntityComponentSystem;
 import entity_component_system.entity.Entity;
+import examples.ecs.movement.entities.EntityBuilder;
 import utils.safe_queue.SafeQueue;
 
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class Commands
@@ -27,6 +29,7 @@ public class Commands
         return queue.stream();
     }
 
+    // Marks an entity for death to be cleared with a flushDespawn call.
     public Commands markForDeath(final Entity entity)
     {
         entityComponentSystem.markForDeath(entity);
@@ -34,9 +37,38 @@ public class Commands
         return this;
     }
 
+    public Commands markForLife(final Object ... components)
+    {
+        entityComponentSystem.spawnBuffer.add(components);
+
+        return this;
+    }
+
+    public Commands markForLife(final Function<EntityBuilder, EntityBuilder> builder)
+    {
+        entityComponentSystem.spawnBuffer.add(builder.apply(new EntityBuilder()).build());
+
+        return this;
+    }
+
     public Commands spawn(final Object ... components)
     {
         entityComponentSystem.spawnBuffer.add(components);
+
+        return this;
+    }
+
+    public Commands spawn(final Function<EntityBuilder, EntityBuilder> builder)
+    {
+        entityComponentSystem.spawn(builder);
+
+        return this;
+    }
+
+    public Commands kill(final Entity entity)
+    {
+        entityComponentSystem.markForDeath(entity);
+        entityComponentSystem.flushDespawn();
 
         return this;
     }

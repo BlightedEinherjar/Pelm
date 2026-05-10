@@ -38,4 +38,6 @@ public interface SafeDeque<T> extends Iterable<T>
     {
         return stream().iterator();
     }
+
+    SafeDeque<T> copy();
 }

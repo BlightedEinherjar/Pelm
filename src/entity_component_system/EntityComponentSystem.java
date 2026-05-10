@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -177,6 +178,14 @@ public class EntityComponentSystem
     public <TMessage> EntityComponentSystem registerSystem(final Class<TMessage> messageClass, final BiConsumer<TMessage, Commands> system)
     {
         this.systemManager.registerEmptySystem(messageClass, system);
+
+        return this;
+    }
+
+    // Could just do this directly since commands are available here but needs may change in the future so keeping it delegated for the time being
+    public EntityComponentSystem triggerOnce(final Consumer<Commands> system)
+    {
+        this.systemManager.triggerOnce(system);
 
         return this;
     }

@@ -1,11 +1,14 @@
 package examples.ecs.ai;
 
 import entity_component_system.EntityComponentSystem;
+import entity_component_system.asset.AssetServer;
+import entity_component_system.asset.Handle;
 import entity_component_system.components.drawing.Drawable;
 import entity_component_system.components.space.Position;
 import entity_component_system.components.space.Velocity;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
+import examples.ecs.ai.behaviour.DirectEnemies;
 import examples.ecs.ai.messages.*;
 import examples.ecs.movement.components.Player;
 import examples.ecs.movement.drawing.*;
@@ -22,6 +25,10 @@ import utils.row.Row3;
 import utils.safe_queue.SafeDeque;
 
 import static examples.ecs.ai.EnemyState.StateType.Wandering;
+import static examples.ecs.ai.Geographic.locationToPVector;
+import static examples.ecs.ai.Geographic.pVectorToLocation;
+import static examples.ecs.ai.collision.Collision.getEntryExitTimesX;
+import static examples.ecs.ai.collision.Collision.getEntryExitTimesY;
 import static java.awt.event.KeyEvent.*;
 
 import java.awt.*;
@@ -35,7 +42,7 @@ import static examples.ecs.movement.Utils.*;
 
 public class AIExampleModel
 {
-    private static final float AIMaximumSpeedFactor = 1.5f;
+    public static final float AIMaximumSpeedFactor = 1.5f;
     public static final float ViewConeRadians = (float) Math.toRadians(90d);
     public static final float ViewConeLength = 40f;
     public final Set<Integer> keys = new HashSet<>();
@@ -43,17 +50,54 @@ public class AIExampleModel
     public final boolean[][] layout = new boolean[27][48];
     public final Random random = new Random();
     private GameState gameState = GameState.Playing;
-    public PImage wonImage;
-    public PImage lostImage;
+    public Handle<PImage> wonImage;
+    public Handle<PImage> lostImage;
 
+    // This is just for debug drawing.
     public Set<Row2<Integer, Integer>> globalBlocked = new HashSet<>();
 
     public void setup(final PApplet loader)
     {
-        wonImage = loader.loadImage("examples/ecs/examples/ai/Won.png");
-        lostImage = loader.loadImage("examples/ecs/examples/ai/Lost.png");
+        final AssetServer assetServer = new AssetServer(loader);
 
-        final var levelImage = loader.loadImage("examples/ecs/examples/ai/Level.png");
+        wonImage = assetServer.loadImage("examples/ecs/examples/ai/Won.png");
+
+        lostImage = assetServer.loadImage("examples/ecs/examples/ai/Lost.png");
+
+        this.generateLevelFromFile(loader, assetServer);
+
+        entityComponentSystem
+                .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
+                // Shows debug information about AI behaviour and such.
+//                .registerSystem(Draw.class, this::drawDebug)
+                .registerSystem(Draw.class, this::showWinLose)
+                .registerSystem(Draw.class, this::updateCone)
+
+                .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
+                .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
+
+                .registerSystem(Tick.class, this::transitionStates)
+                .registerSystem(Tick.class, this::handleInputs)
+                .registerSystem(Tick.class, DirectEnemies::directEnemy)
+                .registerSystem(Tick.class, this::lookEnemies)
+                .registerSystem(Tick.class, this::applyCollisions)
+                .registerSystem(Tick.class, this::updatePositions)
+                .registerSystem(Tick.class, this::rerouteEnemies)
+
+                .registerSystem(SelectNewWanderLocation.class, this::selectNewWanderLocation)
+                .registerSystem(RerouteEnemiesToPlayer.class, this::rerouteEnemiesToPlayer)
+                ;
+    }
+
+    private void generateLevelFromFile(final PApplet loader, final AssetServer assetServer)
+    {
+        final var levelImage = assetServer
+                .loadImmediateWith(
+                        PImage.class,
+                        (p, l) -> l.loadImage(p),
+                        "examples/ecs/examples/ai/Level.png"
+                )
+                .get();
 
         levelImage.loadPixels();
 
@@ -88,6 +132,7 @@ public class AIExampleModel
 
                     if (green >= 0.7)
                     {
+                        layout[yCopy][xCopy] = true;
                         return builder.with(new Rectangle(10, 10, new Color(pixel)))
                                 .with(CellType.Goal);
                     }
@@ -118,30 +163,9 @@ public class AIExampleModel
                 });
             }
         }
-
-        entityComponentSystem
-                .registerSystem(Draw.class, Drawer::drawShapes, Queries.query(Position.class, Shape.class).with(Drawable.class))
-                .registerSystem(Draw.class, this::showWinLose)
-//                .registerSystem(Draw.class, this::drawDebug)
-
-                .registerSystem(DirectionPressed.class, (direction, _) -> this.keys.add(direction.keyCode()))
-                .registerSystem(DirectionReleased.class, (direction, _) -> this.keys.remove(direction.keyCode()))
-
-                .registerSystem(Tick.class, this::transitionStates)
-                .registerSystem(Tick.class, this::handleInputs)
-                .registerSystem(Tick.class, this::directEnemy)
-                .registerSystem(Tick.class, this::lookEnemies)
-                .registerSystem(Tick.class, this::applyCollisions)
-                .registerSystem(Tick.class, this::updatePositions)
-                .registerSystem(Tick.class, this::rerouteEnemies)
-                .registerSystem(Tick.class, this::updateCone)
-
-                .registerSystem(SelectNewWanderLocation.class, this::selectNewWanderLocation)
-                .registerSystem(RerouteEnemiesToPlayer.class, this::rerouteEnemiesToPlayer)
-                ;
     }
 
-    private void rerouteEnemiesToPlayer(final RerouteEnemiesToPlayer rerouteEnemiesToPlayer, final Commands commands)
+    public void rerouteEnemiesToPlayer(final RerouteEnemiesToPlayer rerouteEnemiesToPlayer, final Commands commands)
     {
         final var query = StreamSupport.stream(commands.query(Queries.query(Position.class, EnemyState.class, Route.class)).spliterator(), false).filter(x -> x.b().stateType == EnemyState.StateType.Hunt).map(x -> new Row3<>(pVectorToLocation(x.a()), x.b(), x.c())).toList();
 
@@ -171,8 +195,6 @@ public class AIExampleModel
         {
             if (row.a().stateType != EnemyState.StateType.Hunt && detects(row.b(), row.d(), row.c().facing, cells, CellType.Player))
             {
-                System.out.println("FOUND!!!");
-
                 detects(row.b(), row.d(), row.c().facing, cells, CellType.Player);
 
                 row.a().stateType = EnemyState.StateType.Hunt;
@@ -298,18 +320,26 @@ public class AIExampleModel
 
     private void drawDebug(final Draw draw, final Commands commands)
     {
-        commands.query(Queries.query(EnemyState.class)).forEach(x ->
+        commands.query(Queries.query(Route.class)).forEach(route ->
         {
-            final var position = locationToPVector(x.searchLocation);
+            final var colour = Color.pink.getRGB();
+            var alpha = 1000f;
 
-            draw.drawContext().push();
+            for (final Row2<Integer, Integer> p : route.route.copy())
+            {
+                final var position = locationToPVector(p);
 
-            draw.drawContext().fill(0, 0);
-            draw.drawContext().stroke(Color.green.getRGB());
+                draw.drawContext().push();
 
-            draw.drawContext().rect(position.x, position.y, 10, 10);
+                draw.drawContext().fill(0, 0);
+                draw.drawContext().stroke(colour, alpha);
 
-            draw.drawContext().pop();
+                draw.drawContext().rect(position.x, position.y, 10, 10);
+
+                draw.drawContext().pop();
+
+                alpha -= 50f;
+            }
         });
 
         globalBlocked.forEach(loc ->
@@ -322,6 +352,20 @@ public class AIExampleModel
             draw.drawContext().stroke(Color.red.getRGB());
 
             draw.drawContext().rect(pVector.x, pVector.y, 10, 10);
+
+            draw.drawContext().pop();
+        });
+
+        commands.query(Queries.query(EnemyState.class)).forEach(x ->
+        {
+            final var position = locationToPVector(x.searchLocation);
+
+            draw.drawContext().push();
+
+            draw.drawContext().fill(0, 0);
+            draw.drawContext().stroke(Color.green.getRGB());
+
+            draw.drawContext().rect(position.x, position.y, 10, 10);
 
             draw.drawContext().pop();
         });
@@ -375,18 +419,12 @@ public class AIExampleModel
 
                 if (blocked.contains(nextLocation) || blocked.contains(position))
                 {
-                    System.out.println("======================");
-                    System.out.println("Rerouting from::" + route.route);
-
                     route.route.clear();
 
                     final Optional<List<Row2<Integer, Integer>>> row2s = AStar(position, enemyState.searchLocation, blocked);
                     row2s.ifPresent(r ->
                     {
                         r.forEach(route.route::enqueue);
-
-                        System.out.println("To::" + route.route);
-                        System.out.println("=====================");
                     });
                 }
             }));
@@ -396,10 +434,10 @@ public class AIExampleModel
     private void showWinLose(final Draw draw, final Commands commands)
     {
         if (hasLost())
-            draw.drawContext().image(lostImage, 0, 0, 480, 270);
+            draw.drawContext().image(lostImage.get(), 0, 0, 480, 270);
 
         if (hasWon())
-            draw.drawContext().image(wonImage, 0, 0, 480, 270);
+            draw.drawContext().image(wonImage.get(), 0, 0, 480, 270);
     }
 
     private void selectNewWanderLocation(final SelectNewWanderLocation selectNewWanderLocation, final Commands commands)
@@ -463,7 +501,7 @@ public class AIExampleModel
         }).sum();
     }
 
-    private void updateCone(final Tick tick, final Commands commands)
+    private void updateCone(final Draw tick, final Commands commands)
     {
         final var query = commands.query(Queries.query(Facing.class, Shape.class));
 
@@ -480,22 +518,7 @@ public class AIExampleModel
 
     private void lookEnemies(final Tick tick, final Commands commands)
     {
-//        final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class));
-//        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player ->
-//        {
-//            for (final var enemy : enemiesQuery)
-//            {
-//                final var to = player.copy().sub(enemy.b());
-//                final var angle = Math.atan2(to.y, to.x);
-//                final var delta = (float) (angle - enemy.a().facing);
-//                final var wrapped = (float) Math.atan2(Math.sin(delta), Math.cos(delta));
-//                final var between = Math.clamp(wrapped, -0.05, 0.05);
-//                enemy.a().facing += (float) between;
-//            }
-//        });
-
         final var enemiesQuery = commands.query(Queries.query(Facing.class, Position.class, Velocity.class));
-//        first(commands.query(Queries.query(Position.class).with(Player.class))).ifPresent(player2 ->
         {
             for (final var enemy : enemiesQuery)
             {
@@ -510,7 +533,7 @@ public class AIExampleModel
                 final var between = Math.clamp(wrapped, -0.05, 0.05);
                 enemy.a().facing += (float) between;
             }
-        }//);
+        }
     }
 
     public static float angleBetween(final PVector first, final PVector second)
@@ -518,7 +541,7 @@ public class AIExampleModel
         return (float) Math.atan2(first.cross(second).z, first.dot(second));
     }
 
-    public <T> Optional<T> first(final Iterable<T> iterable)
+    public static  <T> Optional<T> first(final Iterable<T> iterable)
     {
         for (final T t : iterable)
         {
@@ -526,50 +549,6 @@ public class AIExampleModel
         }
 
         return Optional.empty();
-    }
-
-    private boolean vectorsClose(final PVector left, final PVector right)
-    {
-        return Math.abs(left.x - right.x) < 0.1 && Math.abs(left.y - right.y) < 0.1;
-    }
-
-    private void directEnemy(final Tick tick, final Commands commands)
-    {
-        final var enemiesQuery = commands.query(Queries.query(Collider2D.class, Position.class, Velocity.class, EnemyState.class, Route.class).without(Player.class));
-
-        for (final var row : enemiesQuery)
-        {
-            final var peeked = row.e().route.peek();
-
-            peeked.ifPresent(nextLocation ->
-            {
-                if (vectorsClose(locationToPVector(nextLocation), row.b()))
-                {
-                    row.e().route.dequeue();
-                    final var nextLocationMaybe = row.e().route.peek();
-                    if (nextLocationMaybe.isEmpty()) return;
-                    nextLocation = nextLocationMaybe.get();
-                }
-
-                final PVector toTarget = locationToPVector(nextLocation).copy().sub(row.b());
-                final float distance = toTarget.mag();
-
-                if (distance > 0)
-                {
-                    row.c().set(toTarget.normalize().mult(Math.min(AIMaximumSpeedFactor, distance)));
-                }
-            });
-        }
-    }
-
-    private PVector locationToPVector(final Row2<Integer, Integer> location)
-    {
-        return new PVector(location.a() * 10, location.b() * 10);
-    }
-
-    private Row2<Integer, Integer> pVectorToLocation(final PVector vector)
-    {
-        return new Row2<>((int)(vector.x / 10), (int)(vector.y / 10));
     }
 
     private void updatePositions(final Tick tick, final Commands commands)
@@ -673,7 +652,7 @@ public class AIExampleModel
                             return;
                         }
 
-                        if (staticsRow.c() == CellType.Enemy)
+                        if (staticsRow.c() == CellType.Enemy && !hasWon())
                         {
                             this.gameState = GameState.Lost;
 
@@ -714,23 +693,11 @@ public class AIExampleModel
                 final var normal = l.c();
                 final var index = l.a();
 
-                if (removed.size() == 1)
-                {
-                    System.out.println();
-                }
-
                 final var dot = nonStaticVelocity.dot(normal);
-
-                System.out.println(nonStaticPosition);
 
 //                final var dot = nonStaticVelocity.dot(normal);
 
                 nonStaticPosition.add(nonStaticVelocity.copy().mult(entryTime * remainingTime * dot));
-
-                if (nonStaticPosition.y < 10)
-                {
-                    System.out.println();
-                }
 
                 if (dot < 0) {
                     nonStaticVelocity.sub(normal.copy().mult(dot));
@@ -748,34 +715,6 @@ public class AIExampleModel
             }
 //            nonStaticVelocity.sub();
         }
-    }
-
-    private static Row2<Float, Float> getEntryExitTimesY(final PVector nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final Float entryY, final Float exitY)
-    {
-        if (nonStaticVelocity.y == 0)
-        {
-            if (nonStaticCoordinates.bottomLeft().y < staticCoordinates.topLeft().y || nonStaticCoordinates.topLeft().y > staticCoordinates.bottomLeft().y) {
-                return new Row2<>(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY);
-            }
-                return new Row2<>(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY);
-        }
-        final var entryTimeY = entryY / nonStaticVelocity.y;
-        final var exitTimeY  = exitY / nonStaticVelocity.y;
-
-        return new Row2<>(entryTimeY, exitTimeY);
-    }
-
-    private static Row2<Float, Float> getEntryExitTimesX(final PVector nonStaticVelocity, final RectangleCoordinates nonStaticCoordinates, final RectangleCoordinates staticCoordinates, final float entryX, final float exitX)
-    {
-        if (nonStaticVelocity.x == 0)
-        {
-            if (nonStaticCoordinates.topRight().x < staticCoordinates.topLeft().x || nonStaticCoordinates.topLeft().x > staticCoordinates.topRight().x)
-                return new Row2<>(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY);
-
-            return new Row2<>(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY);
-        }
-
-        return new Row2<>(entryX / nonStaticVelocity.x, exitX / nonStaticVelocity.x);
     }
 
     private record Node(Row2<Integer, Integer> position, int heuristic, int previousCost)

@@ -3,7 +3,6 @@ package examples.ecs.squares;
 import entity_component_system.EntityComponentSystem;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
-import entity_component_system.query.Query1;
 import entity_component_system.query.Query2;
 
 public record Model(EntityComponentSystem ecs)
@@ -88,7 +87,7 @@ public record Model(EntityComponentSystem ecs)
 
     private static void spawn(final Message.Spawn msg, final Commands commands)
     {
-        commands.spawn(msg.position(), msg.velocity(), msg.shape());
+        commands.markForLife(msg.position(), msg.velocity(), msg.shape());
     }
 
     private static void flushSpawn(final Message.FlushSpawn msg, final Commands commands)

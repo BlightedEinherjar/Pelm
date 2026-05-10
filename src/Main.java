@@ -4,6 +4,7 @@ import entity_component_system.query.MessageWriter;
 import examples.ecs.ai.AIExample;
 import examples.ecs.movement.Model;
 import examples.ecs.movement.Movement;
+import procedural_generation.ProceduralGeneration;
 import processing.core.PApplet;
 import processing.core.PVector;
 
@@ -13,7 +14,7 @@ public class Main
 {
     public static void main(final String[] args)
     {
-        final var pelm = new AIExample();
+        final var pelm = new ProceduralGeneration();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
 
