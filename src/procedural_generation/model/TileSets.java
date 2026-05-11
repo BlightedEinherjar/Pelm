@@ -6,15 +6,21 @@ import java.util.stream.Collectors;
 
 public enum TileSets
 {
-    Standard(Arrays.stream(new TileData[]
+    Standard(new TileSet(Arrays.stream(new TileData[]
             {
                     new GrassTileData(),
+                    new TreeTileData(),
+                    new CoastTileData(),
+                    new RotateTileData(new CoastTileData()),
+                    new RotateTileData(new RotateTileData(new CoastTileData())),
+                    new RotateTileData(new RotateTileData(new RotateTileData(new CoastTileData()))),
+                    new SeaTileData()
 
-            }).collect(Collectors.toSet()));
+            }).collect(Collectors.toSet()), new GrassTileData()));
 
-    public final Set<TileData> tileSet;
+    public final TileSet tileSet;
 
-    TileSets(final Set<TileData> tileSet)
+    TileSets(final TileSet tileSet)
     {
         this.tileSet = tileSet;
     }

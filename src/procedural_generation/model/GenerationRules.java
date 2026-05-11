@@ -2,20 +2,18 @@ package procedural_generation.model;
 
 import java.util.*;
 
-public class GenerationRules
+public record GenerationRules(TileSet tileSet)
 {
-    public final Set<TileData> allTiles;
-
-    public GenerationRules(final Set<TileData> tileSet)
+    public Set<TileData> allTiles()
     {
-        this.allTiles = tileSet;
+        return tileSet.tileSet();
     }
 
     public Set<TileData> fillConstraintSet(final GenerativeTileData[][] chunkData, final int x, final int y, final Set<TileData> constraints)
     {
         if (chunkData[y][x] instanceof final SetData setData) return constraints;
 
-        constraints.addAll(allTiles);
+        constraints.addAll(allTiles());
 
         // Can check left
         if (x > 0)

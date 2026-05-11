@@ -26,6 +26,8 @@ public class ProceduralGenerationModel
                     commands.kill(buttonEntity);
 
                     commands.spawn(terrainGenerator.generateStartChunkEntity().build());
+
+                    System.out.println("Generated!");
                 })));
     }
 

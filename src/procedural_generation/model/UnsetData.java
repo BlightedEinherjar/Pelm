@@ -16,7 +16,7 @@ public final class UnsetData implements GenerativeTileData
         return entropy;
     }
 
-    public int setEntropy(final int entropy)
+    public void setEntropy(final int entropy)
     {
         this.entropy = entropy;
     }

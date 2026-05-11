@@ -4,6 +4,7 @@ import examples.ecs.movement.entities.EntityBuilder;
 import utils.row.Row2;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 ///
 /// Generate sheets of Perlin Noise to represent environmental factors such as temperature, elevation, etc.
@@ -38,37 +39,64 @@ public class TerrainGenerator
         {
             for (int j = 0; j < chunkData[i].length; j++)
             {
-                chunkData[i][j] = new UnsetData(rules.allTiles.size());
+                chunkData[i][j] = new UnsetData(rules.allTiles().size());
             }
         }
 
         final var builder = new EntityBuilder();
 
-        final var initial = new GrassTile();
+        final var initial = rules.tileSet().initialTile();
 
-        setTile(chunkData, 7, 7, initial);
+        setTile(chunkData, 7, 7, initial.create());
 
         return builder.with(new Chunk(chunkData));
     }
 
-    private void setTile(final GenerativeTileData[][] chunkData, final int x, final int y, final Tile setTile)
+    private void printChunk(final GenerativeTileData[][] chunkData)
     {
-        chunkData[x][y] = set(setTile);
+        System.out.println(Arrays.stream(chunkData).map(chunkRow -> Arrays.stream(chunkRow).map(x ->
+                switch (x)
+                {
+                    case final SetData s -> s.tile().getClass().getSimpleName().substring(0, 1);
+                    case final UnsetData unsetData -> Integer.toString(unsetData.entropy());
+                })).map(x -> x.collect(Collectors.joining("|"))).collect(Collectors.joining("\n")));
+        System.out.println();
+    }
 
-        propagateConstraints(chunkData, x, y);
+    private void setTile(final GenerativeTileData[][] chunkData, int x, int y, Tile setTile)
+    {
+        System.out.println("XY");
+        System.out.println(x);
+        System.out.println(y);
+        while (true)
+        {
+            chunkData[y][x] = set(setTile);
 
-        final var mostConstrainedCoordinates = findMostConstrained(chunkData);
+            printChunk(chunkData);
 
-        if (mostConstrainedCoordinates.isEmpty()) return;
+            propagateConstraints(chunkData, x, y);
 
-        final var xy = mostConstrainedCoordinates.get();
+            printChunk(chunkData);
 
-        final var constraints = rules.fillConstraintSet(chunkData, xy.a(), xy.b(), new HashSet<>());
+            final var mostConstrainedCoordinates = findMostConstrained(chunkData);
 
+            if (mostConstrainedCoordinates.isEmpty()) return;
 
-        final var newTile = Collections.min(constraints, Comparator.comparingInt(_ -> this.random.nextInt()));
+            final var xy = mostConstrainedCoordinates.get();
 
-        setTile(chunkData, xy.a(), xy.b(), newTile.create());
+            final var constraints = rules.fillConstraintSet(chunkData, xy.a(), xy.b(), new HashSet<>());
+
+            if (constraints.isEmpty())
+            {
+                System.out.println();
+                return;
+            }
+
+            setTile = Collections.min(constraints, Comparator.comparingInt(_ -> this.random.nextInt())).create();
+
+            x = xy.a();
+            y = xy.b();
+        }
     }
 
     private Optional<Row2<Integer, Integer>> findMostConstrained(final GenerativeTileData[][] chunkData)
@@ -83,10 +111,17 @@ public class TerrainGenerator
             {
                 if (chunkData[y][x] instanceof final UnsetData unsetData)
                 {
-                    minimumEntropy = Math.min(minimumEntropy, unsetData.entropy());
+                    if (unsetData.entropy() < minimumEntropy)
+                    {
+                        minimumEntropy = unsetData.entropy();
+                        xLocation = x;
+                        yLocation = y;
+                    }
 
-                    yLocation = y;
-                    xLocation = x;
+                    if (minimumEntropy <= 1)
+                    {
+                        return Optional.of(new Row2<>(xLocation, yLocation));
+                    }
                 }
             }
         }
@@ -137,43 +172,43 @@ public class TerrainGenerator
         }
     }
 
-    private static Optional<Set<TileData>> mostConstrained(final GenerativeTileData[][] chunkData, final GenerationRules rules)
-    {
-        final var leastY = -1;
-        final var leastX = -1;
-        var mostConstrained = new HashSet<TileData>();
-        var constraints = new HashSet<TileData>();
-
-        for (int y = 0; y < chunkData.length; y++)
-        {
-            final var chunkRow = chunkData[y];
-
-            for (int x = 0; x < chunkRow.length; x++)
-            {
-                constraints.clear();
-
-                final var tileData = chunkRow[x];
-
-                if (tileData instanceof SetData) continue;
-
-                rules.fillConstraintSet(chunkData, x, y, constraints);
-
-                if (constraints.size() < mostConstrained.size())
-                {
-                    final var t = mostConstrained;
-                    mostConstrained = constraints;
-                    constraints = t;
-                }
-            }
-        }
-
-        if (mostConstrained.isEmpty())
-        {
-            return Optional.of(rules.allTiles);
-        }
-
-        return Optional.of(mostConstrained);
-    }
+//    private static Optional<Set<TileData>> mostConstrained(final GenerativeTileData[][] chunkData, final GenerationRules rules)
+//    {
+//        final var leastY = -1;
+//        final var leastX = -1;
+//        var mostConstrained = new HashSet<TileData>();
+//        var constraints = new HashSet<TileData>();
+//
+//        for (int y = 0; y < chunkData.length; y++)
+//        {
+//            final var chunkRow = chunkData[y];
+//
+//            for (int x = 0; x < chunkRow.length; x++)
+//            {
+//                constraints.clear();
+//
+//                final var tileData = chunkRow[x];
+//
+//                if (tileData instanceof SetData) continue;
+//
+//                rules.fillConstraintSet(chunkData, x, y, constraints);
+//
+//                if (constraints.size() < mostConstrained.size())
+//                {
+//                    final var t = mostConstrained;
+//                    mostConstrained = constraints;
+//                    constraints = t;
+//                }
+//            }
+//        }
+//
+//        if (mostConstrained.isEmpty())
+//        {
+//            return Optional.of(rules.allTiles());
+//        }
+//
+//        return Optional.of(mostConstrained);
+//    }
 
     public static GenerativeTileData set(final Tile tile)
     {
