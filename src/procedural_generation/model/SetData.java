@@ -1,5 +1,5 @@
 package procedural_generation.model;
 
-public record SetData(Tile tile) implements GenerativeTileData
+public record SetData<TileDataEdge>(Tile<TileDataEdge> tile) implements GenerativeTileData
 {
 }

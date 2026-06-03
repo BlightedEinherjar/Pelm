@@ -16,13 +16,14 @@ import java.util.stream.Collectors;
 /// Do noise via noise(x, y) -> float functions with different granularities
 ///
 
-public class TerrainGenerator
+public class TerrainGenerator<TileDataEdge>
 {
-    private final GenerationRules rules = new GenerationRules(TileSets.Standard.tileSet);
+    private final GenerationRules<TileDataEdge> rules;// = new GenerationRules<TileDataEdge>(TileSets.standard().tileSet);
     private final Random random;
 
-    public TerrainGenerator(final Random random)
+    public TerrainGenerator(final GenerationRules<TileDataEdge> rules, final Random random)
     {
+        this.rules = rules;
         this.random = random;
     }
 
@@ -54,16 +55,17 @@ public class TerrainGenerator
 
     private void printChunk(final GenerativeTileData[][] chunkData)
     {
+        System.out.println();
         System.out.println(Arrays.stream(chunkData).map(chunkRow -> Arrays.stream(chunkRow).map(x ->
                 switch (x)
                 {
-                    case final SetData s -> s.tile().getClass().getSimpleName().substring(0, 1);
+                    case final SetData<?> s -> s.tile().getClass().getSimpleName().substring(0, 1);
                     case final UnsetData unsetData -> Integer.toString(unsetData.entropy());
                 })).map(x -> x.collect(Collectors.joining("|"))).collect(Collectors.joining("\n")));
-        System.out.println();
     }
 
-    private void setTile(final GenerativeTileData[][] chunkData, int x, int y, Tile setTile)
+    @SuppressWarnings("SameParameterValue")
+    private void setTile(final GenerativeTileData[][] chunkData, int x, int y, Tile<TileDataEdge> setTile)
     {
         System.out.println("XY");
         System.out.println(x);
@@ -88,7 +90,7 @@ public class TerrainGenerator
 
             if (constraints.isEmpty())
             {
-                System.out.println();
+                System.err.println("Bad");
                 return;
             }
 
@@ -136,7 +138,7 @@ public class TerrainGenerator
 
     private void propagateConstraints(final GenerativeTileData[][] chunkData, final int x, final int y)
     {
-        final Set<TileData> constraints = new HashSet<>();
+        final Set<TileData<TileDataEdge>> constraints = new HashSet<>();
 
         if (x > 0)
         {
@@ -159,11 +161,11 @@ public class TerrainGenerator
         }
     }
 
-    private void propagateToSide(final GenerativeTileData[][] chunkData, final int x, final int y, final Set<TileData> constraints)
+    private void propagateToSide(final GenerativeTileData[][] chunkData, final int x, final int y, final Set<TileData<TileDataEdge>> constraints)
     {
         switch (chunkData[y][x])
         {
-            case final SetData _:
+            case final SetData<?> _:
                 break;
             case final UnsetData unsetData:
                 rules.fillConstraintSet(chunkData, x, y, constraints);

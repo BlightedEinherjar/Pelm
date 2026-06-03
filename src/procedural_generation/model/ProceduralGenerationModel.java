@@ -6,13 +6,14 @@ import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
 import procedural_generation.message.ClickMessage;
 import procedural_generation.message.DrawButtons;
+import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.ui.Button;
 
 import java.util.Random;
 
 public class ProceduralGenerationModel
 {
-    public TerrainGenerator terrainGenerator = new TerrainGenerator(new Random());
+    public TerrainGenerator<StandardTileEdge> terrainGenerator = new TerrainGenerator<>(new GenerationRules<>(TileSets.standard()), new Random());
     public EntityComponentSystem ecs = new EntityComponentSystem();
 
     public ProceduralGenerationModel()

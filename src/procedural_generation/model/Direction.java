@@ -28,4 +28,15 @@ public enum Direction
             case West -> North;
         };
     }
+
+    Direction rotateAntiClockwise()
+    {
+        return switch (this)
+        {
+            case North -> West;
+            case West -> South;
+            case South -> East;
+            case East -> North;
+        };
+    }
 }

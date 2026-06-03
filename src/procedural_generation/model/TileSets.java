@@ -1,27 +1,26 @@
 package procedural_generation.model;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
+import procedural_generation.model.standard_tile_set.*;
+import procedural_generation.model.standard_tile_set.data.CoastTileData;
+import procedural_generation.model.standard_tile_set.data.GrassTileData;
+import procedural_generation.model.standard_tile_set.data.SeaTileData;
+import procedural_generation.model.standard_tile_set.data.TreeTileData;
+
+import java.util.HashSet;
+import java.util.List;
 
 public enum TileSets
 {
-    Standard(new TileSet(Arrays.stream(new TileData[]
-            {
-                    new GrassTileData(),
-                    new TreeTileData(),
-                    new CoastTileData(),
-                    new RotateTileData(new CoastTileData()),
-                    new RotateTileData(new RotateTileData(new CoastTileData())),
-                    new RotateTileData(new RotateTileData(new RotateTileData(new CoastTileData()))),
-                    new SeaTileData()
+    ;
 
-            }).collect(Collectors.toSet()), new GrassTileData()));
-
-    public final TileSet tileSet;
-
-    TileSets(final TileSet tileSet)
+    public static TileSet<StandardTileEdge> standard()
     {
-        this.tileSet = tileSet;
+        return (new TileSet<>(new HashSet<>(List.of(
+                new GrassTileData(),
+                new TreeTileData(),
+                new CoastTileData(),
+                new SeaTileData()
+
+        )), new GrassTileData()));
     }
 }

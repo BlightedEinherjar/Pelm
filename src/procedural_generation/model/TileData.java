@@ -2,13 +2,19 @@ package procedural_generation.model;
 
 import processing.core.PGraphics;
 
-public interface TileData
+import java.util.EnumSet;
+
+public interface TileData<TileEdge>
 {
     float Size = 20;
 
-    TileEdge edge(Direction direction);
+    boolean availableRotation(TileRotation rotation);
 
-    Tile create();
+    boolean inputEdgeMatches(TileEdge edge, Direction direction);
+
+    TileEdge outputEdge(Direction direction);
+
+    Tile<TileEdge> create();
 
     void draw(PGraphics drawContext, int x, int y);
 }

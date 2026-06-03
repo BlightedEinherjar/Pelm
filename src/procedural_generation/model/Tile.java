@@ -1,6 +1,6 @@
 package procedural_generation.model;
 
-public interface Tile
+public interface Tile<TileDataEdge>
 {
-    TileData data();
+    TileData<TileDataEdge> data();
 }
