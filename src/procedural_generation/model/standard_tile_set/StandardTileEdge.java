@@ -4,6 +4,6 @@ public enum StandardTileEdge
 {
     Land,
     Sea,
-    CoastLand,
+    Coast,
     CoastSea
 }

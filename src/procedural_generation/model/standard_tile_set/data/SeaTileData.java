@@ -8,39 +8,26 @@ import procedural_generation.model.standard_tile_set.tile.SeaTile;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import processing.core.PGraphics;
 
+import static procedural_generation.model.standard_tile_set.StandardTileEdge.Sea;
+
 public class SeaTileData implements TileData<StandardTileEdge>
 {
-    @Override
-    public boolean availableRotation(final TileRotation rotation)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean inputEdgeMatches(final StandardTileEdge standardTileEdge, final Direction direction)
-    {
-        return switch (standardTileEdge)
-        {
-            case Sea, CoastSea -> true;
-            default -> false;
-        };
-    }
 
     @Override
     public StandardTileEdge outputEdge(final Direction direction)
     {
-        return StandardTileEdge.Sea;
+        return Sea;
     }
 
     @Override
-    public Tile create()
+    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
+    {
+        return standardTileEdge == Sea || standardTileEdge == StandardTileEdge.Coast;
+    }
+
+    @Override
+    public Tile<StandardTileEdge> create()
     {
         return new SeaTile(this);
-    }
-
-    @Override
-    public void draw(final PGraphics drawContext, final int x, final int y)
-    {
-
     }
 }

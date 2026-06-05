@@ -1,15 +1,21 @@
 package procedural_generation.model;
 
+import procedural_generation.model.standard_tile_set.StandardTileEdge;
+import procedural_generation.model.standard_tile_set.data.SeaTileData;
+import utils.result.Ok;
 import utils.result.Result;
 import utils.row.Row2;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static procedural_generation.model.Direction.*;
 
-public class Generate
+public enum Generate
 {
-    public  <TileEdge> GenerationChunk<TileEdge> initialiseGrid(final int dimension, final List<TileData<TileEdge>> tileSet)
+    ;
+
+    public static <TileEdge> GenerationChunk<TileEdge> createGenerationGrid(final int dimension, final List<TileData<TileEdge>> tileSet)
     {
         final var grid = new ArrayList<ArrayList<GenerationChunk.GenerationCell<TileEdge>>>();
 
@@ -21,11 +27,28 @@ public class Generate
 
             for (int j = 0; j < dimension; j++)
             {
-                row.add(new GenerationChunk.GenerationCell.GenerationUnsetTile<>(new HashSet<>()));
+                row.add(new GenerationChunk.GenerationCell.GenerationUnsetTile<>(new HashSet<>(tileSet)));
             }
         }
 
         return new GenerationChunk<>(grid);
+    }
+
+    public static Chunk<StandardTileEdge> generateStandard()
+    {
+        final var r = new Random(0);
+
+        final var grid = createGenerationGrid(16, TileSets.standard().tileSet().stream().toList());
+
+        while (true)
+        {
+            final var u = step(grid, r);
+
+            if (u instanceof final Ok<GenerationChunk<StandardTileEdge>, Chunk<StandardTileEdge>> done)
+            {
+                return done.success();
+            }
+        }
     }
 
     public static <TileEdge> boolean compatibleEastWest(final TileData<TileEdge> left, final TileData<TileEdge> right)
@@ -92,8 +115,29 @@ public class Generate
         return yMax >= 0 ? Optional.of(new Row2<>(xMax, yMax)) : Optional.empty();
     }
 
+    public static <TileEdge> String chunkToString(final GenerationChunk<TileEdge> chunk)
+    {
+        return chunk.chunkData().stream().map(row -> row.stream().map(v ->
+                switch (v)
+                {
+                    case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> s ->
+                    {
+                        if (s.tile().data() instanceof final RotatedTileData<?> r)
+                        {
+                            yield r.base().getClass().getSimpleName().substring(0, 1) + Integer.toString(r.rotation().ordinal()).substring(0, 1);
+                        }
+
+                        yield s.tile().getClass().getSimpleName().substring(0, 2);
+                    }
+                    case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> s -> String.format("%2s", s.data().size());
+                }).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
+    }
+
     public static <TileEdge> Result<GenerationChunk<TileEdge>, Chunk<TileEdge>> step(final GenerationChunk<TileEdge> chunk, final Random random)
     {
+        System.out.println("\n\n");
+        System.out.println(chunkToString(chunk));
+
         final Optional<Row2<Integer, Integer>> pos = mostConstrainedPosition(chunk);
 
         // Already done
@@ -108,6 +152,11 @@ public class Generate
 
     private static <TileEdge> boolean isValid(final TileData<TileEdge> tile, final Row2<Integer, Integer> position, final GenerationChunk<TileEdge> grid)
     {
+        if (tile instanceof SeaTileData)
+        {
+            System.out.println();
+        }
+
         return      check(tile, new Row2<>(position.x() + 1, position.y()), East, grid)
                 &&  check(tile, new Row2<>(position.x(), position.y() + 1), South, grid)
                 &&  check(tile, new Row2<>(position.x() - 1, position.y()), West, grid)
@@ -125,7 +174,7 @@ public class Generate
 
         return switch (neighbour)
         {
-            case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> ignored -> true;
+            case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> ignored -> ignored.tile().data().inputEdge(direction.opposite(), tile.outputEdge(direction));
             case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> cell ->
                     cell.data().stream().anyMatch(x -> x.inputEdge(direction.opposite(), tile.outputEdge(direction)));
         };
@@ -135,7 +184,8 @@ public class Generate
     {
         final Stack<Row2<Integer, Integer>> positionStack = new Stack<>();
 
-        positionStack.addAll(neighbours(position));
+        final var neighbours = neighbours(position);
+        positionStack.addAll(neighbours);
 
         while (!positionStack.isEmpty())
         {
@@ -148,6 +198,10 @@ public class Generate
             if (generationCell instanceof GenerationChunk.GenerationCell.GenerationSetTile<TileEdge>) continue;
 
             final var options = generationCell.asUnsetTile().data();
+
+            System.out.println("\n\n");
+
+            System.out.println(chunkToString(chunk));
 
             final boolean altered = options.removeIf(option -> !isValid(option, pos, chunk));
 
@@ -167,6 +221,11 @@ public class Generate
 
     private static List<Row2<Integer, Integer>> neighbours(final Row2<Integer, Integer> position)
     {
-        return List.of(new Row2<>(position.x() + 1, position.y()), new Row2<>(position.x(), position.y() + 1), new Row2<>(position.x() - 1, position.y()),  new Row2<>(position.x(), position.y() - 1));
+        return List.of(
+                new Row2<>(position.x(), position.y() + 1),
+                new Row2<>(position.x(), position.y() - 1),
+                new Row2<>(position.x() - 1, position.y()),
+                new Row2<>(position.x() + 1, position.y())
+        );
     }
 }

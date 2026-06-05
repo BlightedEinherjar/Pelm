@@ -10,43 +10,25 @@ import processing.core.PGraphics;
 
 import java.awt.*;
 
+import static procedural_generation.model.standard_tile_set.StandardTileEdge.Land;
+
 public record GrassTileData() implements TileData<StandardTileEdge>
 {
-    @Override
-    public boolean availableRotation(final TileRotation rotation)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean inputEdgeMatches(final StandardTileEdge standardTileEdge, final Direction direction)
-    {
-        return switch (standardTileEdge)
-        {
-            case Land, CoastLand -> true;
-            default -> false;
-        };
-    }
 
     @Override
     public StandardTileEdge outputEdge(final Direction direction)
     {
-        return StandardTileEdge.Land;
-    }
-
-    public void draw(final PGraphics drawContext, final int x, final int y)
-    {
-        drawContext.push();
-
-        drawContext.fill(Color.green.getRGB());
-
-        drawContext.rect(x, y, TileData.Size, TileData.Size);
-
-        drawContext.pop();
+        return Land;
     }
 
     @Override
-    public Tile create()
+    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
+    {
+        return standardTileEdge == Land;
+    }
+
+    @Override
+    public Tile<StandardTileEdge> create()
     {
         return new GrassTile(this);
     }

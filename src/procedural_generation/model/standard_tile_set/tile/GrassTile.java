@@ -5,7 +5,7 @@ import procedural_generation.model.TileData;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.standard_tile_set.data.GrassTileData;
 
-public record GrassTile(GrassTileData tileData) implements Tile
+public record GrassTile(GrassTileData tileData) implements Tile<StandardTileEdge>
 {
     @Override
     public TileData<StandardTileEdge> data()

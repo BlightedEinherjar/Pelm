@@ -8,7 +8,5 @@ public interface TileData<TileEdge>
 
     boolean inputEdge(Direction direction, TileEdge edge);
 
-    EnumSet<TileRotation> allowedRotations();
-
     Tile<TileEdge> create();
 }

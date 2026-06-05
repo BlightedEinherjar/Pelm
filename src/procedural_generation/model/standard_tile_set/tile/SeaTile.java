@@ -5,7 +5,7 @@ import procedural_generation.model.TileData;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.standard_tile_set.data.SeaTileData;
 
-public record SeaTile(SeaTileData seaTileData) implements Tile
+public record SeaTile(SeaTileData seaTileData) implements Tile<StandardTileEdge>
 {
     @Override
     public TileData<StandardTileEdge> data()

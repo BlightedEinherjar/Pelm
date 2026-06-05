@@ -9,17 +9,18 @@ import procedural_generation.model.standard_tile_set.tile.TreeTile;
 import processing.core.PGraphics;
 
 import java.awt.*;
+import java.util.EnumSet;
 
 public record TreeTileData() implements TileData<StandardTileEdge>
 {
     @Override
-    public boolean availableRotation(final TileRotation rotation)
+    public StandardTileEdge outputEdge(final Direction direction)
     {
-        return false;
+        return StandardTileEdge.Land;
     }
 
     @Override
-    public boolean inputEdgeMatches(final StandardTileEdge standardTileEdge, final Direction direction)
+    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
     {
         return switch (standardTileEdge)
         {
@@ -29,26 +30,8 @@ public record TreeTileData() implements TileData<StandardTileEdge>
     }
 
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
-    {
-        return StandardTileEdge.Land;
-    }
-
-    @Override
-    public Tile create()
+    public Tile<StandardTileEdge> create()
     {
         return new TreeTile(this);
-    }
-
-    @Override
-    public void draw(final PGraphics drawContext, final int x, final int y)
-    {
-        drawContext.push();
-
-        drawContext.fill(Color.black.getRGB());
-
-        drawContext.rect(x, y, TileData.Size, TileData.Size);
-
-        drawContext.pop();
     }
 }

@@ -39,4 +39,24 @@ public enum Direction
             case East -> North;
         };
     }
+
+    public Direction rotateClockwise(final TileRotation rotation)
+    {
+        return switch (rotation)
+        {
+            case Quarter -> rotateClockwise();
+            case Half -> rotateClockwise().rotateClockwise();
+            case ThreeQuarters -> rotateAntiClockwise();
+        };
+    }
+
+    public Direction rotateAntiClockwise(final TileRotation rotation)
+    {
+        return switch (rotation)
+        {
+            case Quarter -> rotateAntiClockwise();
+            case Half -> rotateClockwise().rotateClockwise();
+            case ThreeQuarters -> rotateClockwise();
+        };
+    }
 }

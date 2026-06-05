@@ -7,4 +7,11 @@ public record Row2<A, B>(A a, B b)
     {
         return "(" + a + ", " + b + ")";
     }
+
+    public A x() { return a; }
+
+    public B y()
+    {
+        return b;
+    }
 }

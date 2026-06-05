@@ -40,6 +40,15 @@ public sealed interface Result<TError, TSuccess> permits Err, Ok
         };
     }
 
+    default TError unwrapAsError()
+    {
+        return switch (this)
+        {
+            case final Ok<TError, TSuccess> _ -> throw new UnwrapException();
+            case final Err<TError, TSuccess> err -> err.error();
+        };
+    }
+
     static <TError, TNewSuccess> Ok<TError, TNewSuccess> ok(final TNewSuccess success)
     {
         return new Ok<>(success);
