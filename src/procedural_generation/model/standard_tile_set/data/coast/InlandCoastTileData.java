@@ -12,22 +12,14 @@ public record InlandCoastTileData() implements TileData<StandardTileEdge>
 {
 
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
+    public StandardTileEdge edge(final Direction direction)
     {
         return switch (direction)
         {
             case North -> Coast;
-            case West, East, South -> Land;
-        };
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
-    {
-        return switch (direction)
-        {
-            case South -> standardTileEdge == Sea;
-            default -> standardTileEdge == Land;
+            case West -> LeftCoastLand;
+            case East -> RightCoastLand;
+            case South -> Land;
         };
     }
 

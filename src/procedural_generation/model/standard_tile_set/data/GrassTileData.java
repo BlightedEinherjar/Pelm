@@ -16,15 +16,9 @@ public record GrassTileData() implements TileData<StandardTileEdge>
 {
 
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
+    public StandardTileEdge edge(final Direction direction)
     {
         return Land;
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
-    {
-        return standardTileEdge == Land;
     }
 
     @Override

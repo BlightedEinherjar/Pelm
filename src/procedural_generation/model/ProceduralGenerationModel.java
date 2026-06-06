@@ -5,6 +5,7 @@ import entity_component_system.entity.Entity;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
 import examples.ecs.movement.entities.EntityBuilder;
+import org.jetbrains.annotations.NotNull;
 import procedural_generation.message.ClickMessage;
 import procedural_generation.message.DrawButtons;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
@@ -31,7 +32,9 @@ public class ProceduralGenerationModel
 
                     final Chunk<StandardTileEdge> chunk = Generate.generateStandard();
 
-                    final String collect = chunk.grid().stream().map(row -> row.stream().map(v -> v.getClass().getSimpleName().charAt(0)).map(x -> Character.toString(x)).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
+                    final String collect = chunkString(chunk);
+
+                    System.out.println("\n\n\n\n");
 
                     System.out.println(collect);
 
@@ -39,6 +42,16 @@ public class ProceduralGenerationModel
 
                     System.out.println("Generated!");
                 })));
+    }
+
+    public static String chunkString(final Chunk<StandardTileEdge> chunk)
+    {
+        return chunk.grid().stream().map(row -> row.stream().map(v ->
+                switch (v.data())
+                {
+                    case final RotatedTileData<StandardTileEdge> r -> r.base().getClass().getSimpleName().substring(0, 1) + Integer.toString(r.rotation().ordinal());
+                    default -> v.getClass().getSimpleName().substring(0, 2);
+                }).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
     }
 
     private static void drawButtonsSystem(final DrawButtons drawMessage, final Commands commands)

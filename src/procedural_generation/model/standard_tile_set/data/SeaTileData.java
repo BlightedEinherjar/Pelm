@@ -14,15 +14,9 @@ public class SeaTileData implements TileData<StandardTileEdge>
 {
 
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
+    public StandardTileEdge edge(final Direction direction)
     {
         return Sea;
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
-    {
-        return standardTileEdge == Sea || standardTileEdge == StandardTileEdge.Coast;
     }
 
     @Override

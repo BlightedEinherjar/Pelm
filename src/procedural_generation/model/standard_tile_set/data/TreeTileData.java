@@ -14,19 +14,9 @@ import java.util.EnumSet;
 public record TreeTileData() implements TileData<StandardTileEdge>
 {
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
+    public StandardTileEdge edge(final Direction direction)
     {
         return StandardTileEdge.Land;
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
-    {
-        return switch (standardTileEdge)
-        {
-            case Land -> true;
-            default -> false;
-        };
     }
 
     @Override

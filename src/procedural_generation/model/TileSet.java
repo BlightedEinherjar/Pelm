@@ -1,8 +1,9 @@
 package procedural_generation.model;
 
+import java.util.List;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
-public record TileSet<TileDataEdge>(Set<TileData<TileDataEdge>> tileSet, TileData<TileDataEdge> initialTile, BiPredicate<TileData<TileDataEdge>, TileData<TileDataEdge>> allowed)
+public record TileSet<TileDataEdge>(List<TileData<TileDataEdge>> tileSet, TileData<TileDataEdge> initialTile, BiPredicate<TileDataEdge, TileDataEdge> allowed)
 {
 }

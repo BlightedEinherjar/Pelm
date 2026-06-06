@@ -2,11 +2,13 @@ package procedural_generation.model;
 
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.standard_tile_set.data.SeaTileData;
+import procedural_generation.model.standard_tile_set.data.coast.CornerCoastTileData;
 import utils.result.Ok;
 import utils.result.Result;
 import utils.row.Row2;
 
 import java.util.*;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import static procedural_generation.model.Direction.*;
@@ -40,9 +42,13 @@ public enum Generate
 
         final var grid = createGenerationGrid(16, TileSets.standard().tileSet().stream().toList());
 
+//        grid.chunkData().get(0).set(0, new GenerationChunk.GenerationCell.GenerationSetTile<>(TileSets.standard().tileSet().get(7).create()));
+
+//        propagate(grid, new Row2<>(0, 0), TileSets.standard().allowed());
+
         while (true)
         {
-            final var u = step(grid, r);
+            final var u = step(grid, r, TileSets.standard().allowed());
 
             if (u instanceof final Ok<GenerationChunk<StandardTileEdge>, Chunk<StandardTileEdge>> done)
             {
@@ -53,12 +59,12 @@ public enum Generate
 
     public static <TileEdge> boolean compatibleEastWest(final TileData<TileEdge> left, final TileData<TileEdge> right)
     {
-        return left.outputEdge(East).equals(right.outputEdge(West));
+        return left.edge(East).equals(right.edge(West));
     }
 
     public static <TileEdge> boolean compatibleNorthSouth(final TileData<TileEdge> left, final TileData<TileEdge> right)
     {
-        return left.outputEdge(South).equals(right.outputEdge(North));
+        return left.edge(South).equals(right.edge(North));
     }
 
     public static <TileEdge> Set<TileData<TileEdge>> filterLeft(final Set<TileData<TileEdge>> left, final Set<TileData<TileEdge>> cell)
@@ -117,23 +123,40 @@ public enum Generate
 
     public static <TileEdge> String chunkToString(final GenerationChunk<TileEdge> chunk)
     {
-        return chunk.chunkData().stream().map(row -> row.stream().map(v ->
+        final var a = chunk.chunkData().stream().map(row -> row.stream().map(v ->
                 switch (v)
                 {
                     case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> s ->
                     {
-                        if (s.tile().data() instanceof final RotatedTileData<?> r)
+                        if (s.tile().data() instanceof final RotatedTileData<TileEdge> r)
                         {
-                            yield r.base().getClass().getSimpleName().substring(0, 1) + Integer.toString(r.rotation().ordinal()).substring(0, 1);
+                            yield r.base().getClass().getSimpleName().substring(0, 1) + Integer.toString(r.rotation().ordinal()).charAt(0);
                         }
 
-                        yield s.tile().getClass().getSimpleName().substring(0, 2);
+                        yield s.tile().data().getClass().getSimpleName().substring(0, 2);
                     }
                     case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> s -> String.format("%2s", s.data().size());
                 }).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
+
+        return a;
+
+//        final var a = chunk.chunkData().stream().map(row -> row.stream().map(v ->
+//                switch (v)
+//                {
+//                    case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> s ->
+//                    {
+//                        if (s.tile().data() instanceof final RotatedTileData<?> r)
+//                        {
+//                            yield r.base().getClass().getSimpleName().charAt(0) + Integer.toString(r.rotation().ordinal()).charAt(0);
+//                        }
+//
+//                        yield s.tile().getClass().getSimpleName().substring(0, 2);
+//                    }
+//                    case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> s -> String.format("%2s", s.data().size());
+//                }));//.collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
     }
 
-    public static <TileEdge> Result<GenerationChunk<TileEdge>, Chunk<TileEdge>> step(final GenerationChunk<TileEdge> chunk, final Random random)
+    public static <TileEdge> Result<GenerationChunk<TileEdge>, Chunk<TileEdge>> step(final GenerationChunk<TileEdge> chunk, final Random random, final BiPredicate<TileEdge, TileEdge> edgeMatch)
     {
         System.out.println("\n\n");
         System.out.println(chunkToString(chunk));
@@ -147,23 +170,28 @@ public enum Generate
 
         chunk.collapseAt(position.x(), position.y(), random);
 
-        return Result.error(propagate(chunk, position));
+        return Result.error(propagate(chunk, position, edgeMatch));
     }
 
-    private static <TileEdge> boolean isValid(final TileData<TileEdge> tile, final Row2<Integer, Integer> position, final GenerationChunk<TileEdge> grid)
+    private static <TileEdge> boolean isValid(final TileData<TileEdge> tile, final Row2<Integer, Integer> position, final GenerationChunk<TileEdge> grid, final BiPredicate<TileEdge, TileEdge> edgeMatch)
     {
         if (tile instanceof SeaTileData)
         {
             System.out.println();
         }
 
-        return      check(tile, new Row2<>(position.x() + 1, position.y()), East, grid)
-                &&  check(tile, new Row2<>(position.x(), position.y() + 1), South, grid)
-                &&  check(tile, new Row2<>(position.x() - 1, position.y()), West, grid)
-                &&  check(tile, new Row2<>(position.x(), position.y() - 1), North, grid);
+        if (position.equals(new Row2<>(3, 0)))
+        {
+            System.out.println();
+        }
+
+        return      check(tile, new Row2<>(position.x() + 1, position.y()), East,  grid, edgeMatch)
+                &&  check(tile, new Row2<>(position.x(), position.y() + 1), South, grid, edgeMatch)
+                &&  check(tile, new Row2<>(position.x() - 1, position.y()), West,  grid, edgeMatch)
+                &&  check(tile, new Row2<>(position.x(), position.y() - 1), North, grid, edgeMatch);
     }
 
-    private static <TileEdge> boolean check(final TileData<TileEdge> tile, final Row2<Integer, Integer> neighbourPosition, final Direction direction, final GenerationChunk<TileEdge> chunk)
+    private static <TileEdge> boolean check(final TileData<TileEdge> tile, final Row2<Integer, Integer> neighbourPosition, final Direction direction, final GenerationChunk<TileEdge> chunk, final BiPredicate<TileEdge, TileEdge> edgeMatch)
     {
         if (chunk.outOfBounds(neighbourPosition))
         {
@@ -172,15 +200,60 @@ public enum Generate
 
         final var neighbour = chunk.at(neighbourPosition);
 
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Quarter);
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData1 = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Half);
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData2 = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.ThreeQuarters);
+
+//        System.out.println("Quarter!");
+//        for (Direction value : Direction.values())
+//        {
+//            StandardTileEdge edge = standardTileEdgeRotatedTileData.edge(value);
+//
+//            System.out.printf("%s::%s\n", value, edge);
+//        }
+//        System.out.println("\n\nHalf!");
+//
+//        for (Direction value : Direction.values())
+//        {
+//            StandardTileEdge edge = standardTileEdgeRotatedTileData1.edge(value);
+//
+//            System.out.printf("%s::%s\n", value, edge);
+//        }
+//
+//        System.out.println("\n\nThree!");
+//
+//        for (Direction value : Direction.values())
+//        {
+//            StandardTileEdge edge = standardTileEdgeRotatedTileData2.edge(value);
+//
+//            System.out.printf("%s::%s\n", value, edge);
+//        }
+//
+//        System.exit(3);
+
         return switch (neighbour)
         {
-            case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> ignored -> ignored.tile().data().inputEdge(direction.opposite(), tile.outputEdge(direction));
+            case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> ignored -> edgeMatch.test(ignored.tile().data().edge(direction.opposite()), tile.edge(direction));
             case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> cell ->
-                    cell.data().stream().anyMatch(x -> x.inputEdge(direction.opposite(), tile.outputEdge(direction)));
+                    cell.data().stream().anyMatch(x ->
+                    {// Breakpoint for if it is C2 checking with C0.
+                        /// C2 C
+                        /// C1 C0
+
+                        if (x instanceof final RotatedTileData<TileEdge> r)
+                        {
+                            if (tile instanceof final RotatedTileData<TileEdge> rr)
+                            {
+                                System.out.println("Hey!");
+                            }
+                        }
+
+                        return edgeMatch.test(x.edge(direction.opposite()), tile.edge(direction));
+                    });
         };
     }
 
-    private static <TileEdge> GenerationChunk<TileEdge> propagate(final GenerationChunk<TileEdge> chunk, final Row2<Integer, Integer> position)
+    private static <TileEdge> GenerationChunk<TileEdge> propagate(final GenerationChunk<TileEdge> chunk, final Row2<Integer, Integer> position, final BiPredicate<TileEdge, TileEdge> edgeMatch)
     {
         final Stack<Row2<Integer, Integer>> positionStack = new Stack<>();
 
@@ -203,7 +276,7 @@ public enum Generate
 
             System.out.println(chunkToString(chunk));
 
-            final boolean altered = options.removeIf(option -> !isValid(option, pos, chunk));
+            final boolean altered = options.removeIf(option -> !isValid(option, pos, chunk, edgeMatch));
 
             if (altered)
             {

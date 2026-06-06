@@ -9,17 +9,10 @@ public record RotatedTileData<TileEdge>(TileData<TileEdge> base, TileRotation ro
     }
 
     @Override
-    public TileEdge outputEdge(final Direction direction)
-    {
-        final Direction rotatedDir = direction.rotateClockwise(rotation);
-        return base.outputEdge(rotatedDir);
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final TileEdge edge)
+    public TileEdge edge(final Direction direction)
     {
         final Direction rotatedDir = direction.rotateAntiClockwise(rotation);
-        return base.inputEdge(rotatedDir, edge);
+        return base.edge(rotatedDir);
     }
 
     @Override

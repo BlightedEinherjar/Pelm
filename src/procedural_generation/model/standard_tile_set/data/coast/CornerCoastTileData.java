@@ -12,22 +12,13 @@ import static procedural_generation.model.standard_tile_set.StandardTileEdge.*;
 public record CornerCoastTileData() implements TileData<StandardTileEdge>
 {
     @Override
-    public StandardTileEdge outputEdge(final Direction direction)
+    public StandardTileEdge edge(final Direction direction)
     {
         return switch (direction)
         {
             case North, East -> Coast;
-            default -> Land;
-        };
-    }
-
-    @Override
-    public boolean inputEdge(final Direction direction, final StandardTileEdge standardTileEdge)
-    {
-        return switch (direction)
-        {
-            case South, West -> standardTileEdge == Sea;
-            default -> standardTileEdge == Land;
+            case West -> LeftCoastLand;
+            case South -> RightCoastLand;
         };
     }
 

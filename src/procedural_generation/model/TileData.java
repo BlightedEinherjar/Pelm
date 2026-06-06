@@ -1,12 +1,8 @@
 package procedural_generation.model;
 
-import java.util.EnumSet;
-
 public interface TileData<TileEdge>
 {
-    TileEdge outputEdge(Direction direction);
-
-    boolean inputEdge(Direction direction, TileEdge edge);
+    TileEdge edge(Direction direction);
 
     Tile<TileEdge> create();
 }
