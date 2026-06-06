@@ -2,7 +2,7 @@ package procedural_generation.model;
 
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.standard_tile_set.data.SeaTileData;
-import procedural_generation.model.standard_tile_set.data.coast.CornerCoastTileData;
+import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
 import utils.result.Ok;
 import utils.result.Result;
 import utils.row.Row2;
@@ -40,7 +40,7 @@ public enum Generate
     {
         final var r = new Random(0);
 
-        final var grid = createGenerationGrid(16, TileSets.standard().tileSet().stream().toList());
+        final var grid = createGenerationGrid(16 * 4, TileSets.standard().tileSet().stream().toList());
 
 //        grid.chunkData().get(0).set(0, new GenerationChunk.GenerationCell.GenerationSetTile<>(TileSets.standard().tileSet().get(7).create()));
 
@@ -200,9 +200,9 @@ public enum Generate
 
         final var neighbour = chunk.at(neighbourPosition);
 
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Quarter);
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData1 = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Half);
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData2 = new RotatedTileData<>(new CornerCoastTileData(), TileRotation.ThreeQuarters);
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Quarter);
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData1 = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Half);
+        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData2 = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.ThreeQuarters);
 
 //        System.out.println("Quarter!");
 //        for (Direction value : Direction.values())

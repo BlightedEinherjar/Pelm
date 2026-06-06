@@ -24,4 +24,16 @@ public record TreeTileData() implements TileData<StandardTileEdge>
     {
         return new TreeTile(this);
     }
+
+    @Override
+    public void draw(final PGraphics g, final int x, final int y, final int width, final int height)
+    {
+        g.push();
+
+        g.fill(150, 75, 0);
+
+        g.rect(x, y, width, height);
+
+        g.pop();
+    }
 }

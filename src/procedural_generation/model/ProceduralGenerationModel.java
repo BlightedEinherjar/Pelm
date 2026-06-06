@@ -11,6 +11,7 @@ import procedural_generation.message.DrawButtons;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.ui.Button;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,7 +24,8 @@ public class ProceduralGenerationModel
     public ProceduralGenerationModel()
     {
         this.ecs.registerSystem(DrawButtons.class, ProceduralGenerationModel::drawButtonsSystem)
-                .registerSystem(ClickMessage.class, this::runButtons);
+                .registerSystem(ClickMessage.class, this::runButtons)
+                .registerSystem(DrawChunkMessage.class, ProceduralGenerationModel::drawChunkSystem);
 
         this.ecs.spawn(builder ->
                 builder.with(new Button(50, 50, 50, 50, "Start!", (commands, _, buttonEntity) ->
@@ -46,12 +48,40 @@ public class ProceduralGenerationModel
 
     public static String chunkString(final Chunk<StandardTileEdge> chunk)
     {
-        return chunk.grid().stream().map(row -> row.stream().map(v ->
-                switch (v.data())
+        return "";
+//        return chunk.grid().stream().map(row -> row.stream().map(v ->
+//                switch (v.data())
+//                {
+//                    case final RotatedTileData<StandardTileEdge> r -> r.base().getClass().getSimpleName().charAt(0) + r.rotation().ordinal();
+//                    default -> v.getClass().getSimpleName().substring(0, 2);
+//                }).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void drawChunkSystem(final DrawChunkMessage drawChunkMessage, final Commands commands)
+    {
+        int x = 0;
+        int y = 0;
+
+        final int width = drawChunkMessage.tileDimension();
+        final int height = drawChunkMessage.tileDimension();
+
+        for (final Chunk<StandardTileEdge> chunk : commands.query(Queries.query(Chunk.class)))
+        {
+            for (final var row : chunk.grid())
+            {
+                for (final var tile : row)
                 {
-                    case final RotatedTileData<StandardTileEdge> r -> r.base().getClass().getSimpleName().substring(0, 1) + Integer.toString(r.rotation().ordinal());
-                    default -> v.getClass().getSimpleName().substring(0, 2);
-                }).collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
+                    tile.data().draw(drawChunkMessage.drawContext(), x, y, width, height);
+
+                    x += width;
+                }
+
+                y += height;
+                x = 0;
+            }
+        }
+
     }
 
     private static void drawButtonsSystem(final DrawButtons drawMessage, final Commands commands)

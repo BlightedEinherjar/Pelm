@@ -8,6 +8,8 @@ import procedural_generation.model.standard_tile_set.tile.SeaTile;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import processing.core.PGraphics;
 
+import java.awt.*;
+
 import static procedural_generation.model.standard_tile_set.StandardTileEdge.Sea;
 
 public class SeaTileData implements TileData<StandardTileEdge>
@@ -23,5 +25,17 @@ public class SeaTileData implements TileData<StandardTileEdge>
     public Tile<StandardTileEdge> create()
     {
         return new SeaTile(this);
+    }
+
+    @Override
+    public void draw(final PGraphics g, final int x, final int y, final int width, final int height)
+    {
+        g.push();
+
+        g.fill(Color.blue.getRGB());
+
+        g.rect(x, y, width, height);
+
+        g.pop();
     }
 }

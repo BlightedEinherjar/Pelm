@@ -4,12 +4,15 @@ import procedural_generation.model.Direction;
 import procedural_generation.model.Tile;
 import procedural_generation.model.TileData;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
-import procedural_generation.model.standard_tile_set.tile.coast.CornerCoastTile;
+import procedural_generation.model.standard_tile_set.tile.coast.OuterCornerCoastTile;
+import processing.core.PGraphics;
+
+import java.awt.*;
 
 import static procedural_generation.model.standard_tile_set.StandardTileEdge.*;
 
 // No headlands in this system. Not for any particular reason, just do not think headlands would look nice in this system.
-public record CornerCoastTileData() implements TileData<StandardTileEdge>
+public record OuterCornerCoastTileData() implements TileData<StandardTileEdge>
 {
     @Override
     public StandardTileEdge edge(final Direction direction)
@@ -25,6 +28,24 @@ public record CornerCoastTileData() implements TileData<StandardTileEdge>
     @Override
     public Tile<StandardTileEdge> create()
     {
-        return new CornerCoastTile(this);
+        return new OuterCornerCoastTile(this);
+    }
+
+    @Override
+    public void draw(final PGraphics g, final int x, final int y, final int width, final int height)
+    {
+        g.push();
+
+        g.translate(x, y);
+        g.rectMode(PGraphics.CORNER);
+
+        g.fill(Color.blue.getRGB());
+        g.rect(0, 0, width, height);
+
+        g.fill(Color.yellow.getRGB());
+
+        g.rect(0, height * 0.2f, width * 0.8f, height * 0.8f);
+
+        g.pop();
     }
 }

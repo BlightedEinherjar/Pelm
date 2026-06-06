@@ -5,5 +5,5 @@ public enum StandardTileEdge
     Land,
     Sea,
     Coast,
-    RightCoastLand, LeftCoastLand, CoastSea
+    RightCoastLand, LeftCoastLand, RightInnerCornerCoastLand, LeftInnerCornerCoastLand, CoastSea
 }

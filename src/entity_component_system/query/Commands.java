@@ -53,7 +53,8 @@ public class Commands
 
     public Commands spawn(final Object ... components)
     {
-        entityComponentSystem.spawnBuffer.add(components);
+//        entityComponentSystem.spawnBuffer.add(components);
+        entityComponentSystem.spawn(components);
 
         return this;
     }

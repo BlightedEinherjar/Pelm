@@ -6,6 +6,7 @@ import pelm.subscription.MouseClickedSubscription;
 import procedural_generation.message.ClickMessage;
 import procedural_generation.message.DrawButtons;
 import procedural_generation.message.ProceduralGenerationMessage;
+import procedural_generation.model.DrawChunkMessage;
 import procedural_generation.model.ProceduralGenerationModel;
 import processing.core.PGraphics;
 
@@ -26,6 +27,14 @@ public class ProceduralGeneration extends Pelm<ProceduralGenerationModel, Proced
         fullScreen();
     }
 
+    @Override
+    protected void onSetup()
+    {
+        strokeWeight(0);
+
+        super.onSetup();
+    }
+
     Subscription<ProceduralGenerationMessage> onClick = new MouseClickedSubscription<>(ClickMessage::new);
 
     @Override
@@ -42,6 +51,7 @@ public class ProceduralGeneration extends Pelm<ProceduralGenerationModel, Proced
         this.drawContext().beginDraw();
 
         this.model.ecs.update(new DrawButtons(drawContext()));
+        this.model.ecs.update(new DrawChunkMessage(drawContext(), 200 / 16));
 
         this.drawContext().endDraw();
     }

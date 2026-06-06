@@ -1,13 +1,13 @@
 package procedural_generation.model;
 
 import procedural_generation.model.standard_tile_set.*;
-import procedural_generation.model.standard_tile_set.data.coast.CornerCoastTileData;
+import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
 import procedural_generation.model.standard_tile_set.data.coast.InlandCoastTileData;
 import procedural_generation.model.standard_tile_set.data.GrassTileData;
 import procedural_generation.model.standard_tile_set.data.SeaTileData;
 import procedural_generation.model.standard_tile_set.data.TreeTileData;
+import procedural_generation.model.standard_tile_set.data.coast.OuterCornerCoastTileData;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.function.BiPredicate;
 
@@ -28,11 +28,15 @@ public enum TileSets
                 new GrassTileData(),
                 new TreeTileData(),
                 new InlandCoastTileData(),
-                new CornerCoastTileData(),
+                new InnerCornerCoastTileData(),
                 new SeaTileData(),
-                new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Quarter),
-                new RotatedTileData<>(new CornerCoastTileData(), TileRotation.Half),
-                new RotatedTileData<>(new CornerCoastTileData(), TileRotation.ThreeQuarters),
+                new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Quarter),
+                new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Half),
+                new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.ThreeQuarters),
+                new OuterCornerCoastTileData(),
+                new RotatedTileData<>(new OuterCornerCoastTileData(), TileRotation.Quarter),
+                new RotatedTileData<>(new OuterCornerCoastTileData(), TileRotation.Half),
+                new RotatedTileData<>(new OuterCornerCoastTileData(), TileRotation.ThreeQuarters),
                 new RotatedTileData<>(new InlandCoastTileData(), TileRotation.Quarter),
                 new RotatedTileData<>(new InlandCoastTileData(), TileRotation.Half),
                 new RotatedTileData<>(new InlandCoastTileData(), TileRotation.ThreeQuarters)
@@ -40,14 +44,22 @@ public enum TileSets
 
                 commutative((left, right) ->
                 {
-                    if (left == LeftCoastLand)
+                    if (left == LeftInnerCornerCoastLand)
                     {
                         return right == RightCoastLand;
                     }
 
+                    if (left == RightInnerCornerCoastLand)
+                        return right == LeftCoastLand;
+
+                    if (left == LeftCoastLand)
+                    {
+                        return right == RightCoastLand || right == RightInnerCornerCoastLand;
+                    }
+
                     if (left == RightCoastLand)
                     {
-                        return right == LeftCoastLand;
+                        return right == LeftCoastLand || right == LeftInnerCornerCoastLand;
                     }
 
                     if (left == Coast)

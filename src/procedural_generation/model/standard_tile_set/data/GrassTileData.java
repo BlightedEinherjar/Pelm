@@ -14,7 +14,6 @@ import static procedural_generation.model.standard_tile_set.StandardTileEdge.Lan
 
 public record GrassTileData() implements TileData<StandardTileEdge>
 {
-
     @Override
     public StandardTileEdge edge(final Direction direction)
     {
@@ -25,5 +24,17 @@ public record GrassTileData() implements TileData<StandardTileEdge>
     public Tile<StandardTileEdge> create()
     {
         return new GrassTile(this);
+    }
+
+    @Override
+    public void draw(final PGraphics g, final int x, final int y, final int width, final int height)
+    {
+        g.push();
+
+        g.fill(Color.green.getRGB());
+
+        g.rect(x, y, width, height);
+
+        g.pop();
     }
 }
