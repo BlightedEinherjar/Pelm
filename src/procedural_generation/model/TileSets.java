@@ -1,6 +1,7 @@
 package procedural_generation.model;
 
 import procedural_generation.model.standard_tile_set.*;
+import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTile;
 import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
 import procedural_generation.model.standard_tile_set.data.coast.InlandCoastTileData;
 import procedural_generation.model.standard_tile_set.data.GrassTileData;
@@ -9,13 +10,17 @@ import procedural_generation.model.standard_tile_set.data.TreeTileData;
 import procedural_generation.model.standard_tile_set.data.coast.OuterCornerCoastTileData;
 
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 
 import static procedural_generation.model.standard_tile_set.StandardTileEdge.*;
 
 public enum TileSets
 {
     ;
+
+    public static final float SeaLevel = 0.2f;
 
     public static <Edge> BiPredicate<Edge, Edge> commutative(final BiPredicate<Edge, Edge> p)
     {
@@ -24,7 +29,7 @@ public enum TileSets
 
     public static TileSet<StandardTileEdge> standard()
     {
-        return (new TileSet<>(List.of(
+        return new TileSet<>(List.of(
                 new GrassTileData(),
                 new TreeTileData(),
                 new InlandCoastTileData(),
@@ -42,35 +47,64 @@ public enum TileSets
                 new RotatedTileData<>(new InlandCoastTileData(), TileRotation.ThreeQuarters)
                 ), new GrassTileData(),
 
-                commutative((left, right) ->
-                {
-                    if (left == LeftInnerCornerCoastLand)
-                    {
-                        return right == RightCoastLand;
-                    }
+                commutative(TileSets::allowed), TileSets::weight);
+    }
 
-                    if (left == RightInnerCornerCoastLand)
-                        return right == LeftCoastLand;
+    private static boolean allowed(final StandardTileEdge left, final StandardTileEdge right)
+    {
+        if (left == LeftInnerCornerCoastLand)
+        {
+            return right == RightCoastLand;
+        }
 
-                    if (left == LeftCoastLand)
-                    {
-                        return right == RightCoastLand || right == RightInnerCornerCoastLand;
-                    }
+        if (left == RightInnerCornerCoastLand)
+            return right == LeftCoastLand;
 
-                    if (left == RightCoastLand)
-                    {
-                        return right == LeftCoastLand || right == LeftInnerCornerCoastLand;
-                    }
+        if (left == LeftCoastLand)
+        {
+            return right == RightCoastLand || right == RightInnerCornerCoastLand;
+        }
 
-                    if (left == Coast)
-                    {
-                        return right == Sea;
-                    }
+        if (left == RightCoastLand)
+        {
+            return right == LeftCoastLand || right == LeftInnerCornerCoastLand;
+        }
 
-                    return left == right;
+        if (left == Coast)
+        {
+            return right == Sea;
+        }
 
-//                    if (left == LeftCoastLand && right == Land || left == RightCoastLand && right == Land)
-//                        return true;
-                })));
+        return left == right;
+    }
+
+    private static float weight(final float h, TileData<StandardTileEdge> tile)
+    {
+        if (tile instanceof final RotatedTileData<StandardTileEdge> t)
+        {
+            tile = t.base();
+        }
+
+        return switch (tile)
+        {
+            case final SeaTileData _   -> h <= SeaLevel ? 1.0f : 0.0f;
+            case final GrassTileData _ -> h <= SeaLevel ? 0.0f : grassWeight.apply(h);
+            case final TreeTileData _  -> h <= SeaLevel ? 1.0f : treeWeight.apply(h);
+            case final InnerCornerCoastTileData _, final OuterCornerCoastTileData _, final InlandCoastTileData _ -> 1.0f;
+            default -> throw new RuntimeException("Unknown tile in weight function");
+        };
+    }
+
+    private static final Function<Float, Float> grassWeight = gauss(0.3f, -0.4f);
+    private static final Function<Float, Float> treeWeight  = gauss(0.55f, -0.3f);
+
+    private static Function<Float, Float> gauss(final float centre, final float steepnessFactor)
+    {
+        return h ->
+        {
+            final var diff = h - centre;
+            final var diffSquare = diff * diff;
+            return (float) Math.exp(-(diffSquare / (2 * steepnessFactor * steepnessFactor)));
+        };
     }
 }

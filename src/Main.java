@@ -5,6 +5,7 @@ import examples.ecs.ai.AIExample;
 import examples.ecs.movement.Model;
 import examples.ecs.movement.Movement;
 import procedural_generation.ProceduralGeneration;
+import procedural_generation.model.noise.ValueNoise;
 import processing.core.PApplet;
 import processing.core.PVector;
 
@@ -17,11 +18,5 @@ public class Main
         final var pelm = new ProceduralGeneration();
 
         PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
-
-//        var pelm = new Counter(0);
-//
-//        PApplet.runSketch(new String[] { "Core.Pelm!!!" }, pelm);
-
-//        new Small().doStuff();
     }
 }
