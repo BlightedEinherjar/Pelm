@@ -87,7 +87,7 @@ public record ValueNoise(float frequency) implements Noise
     public float noise(final float x, final float y)
     {
         final var v = new Row2<>(x * frequency(), y * frequency());
-        final var i = floor(v);
+        final var i = add(floor(v), new Row2<>(50000f, 50000f));
 
         final var f = fract(v);
 

@@ -1,19 +1,25 @@
 package procedural_generation;
 
+import entity_component_system.asset.AssetServer;
 import pelm.core.Pelm;
 import pelm.core.Subscription;
+import pelm.subscription.ButtonPressedSubscription;
 import pelm.subscription.MouseClickedSubscription;
-import procedural_generation.message.ClickMessage;
-import procedural_generation.message.DrawButtons;
-import procedural_generation.message.ProceduralGenerationMessage;
+import procedural_generation.message.*;
+import procedural_generation.model.Direction;
 import procedural_generation.model.DrawChunkMessage;
 import procedural_generation.model.ProceduralGenerationModel;
 import processing.core.PGraphics;
 
 import java.util.stream.Stream;
 
+import static java.awt.event.KeyEvent.*;
+
 public class ProceduralGeneration extends Pelm<ProceduralGenerationModel, ProceduralGenerationMessage>
 {
+
+    public static final int TileWidth = 200 / 16;
+
     private PGraphics drawContext() { return g; }
 
     public ProceduralGeneration()
@@ -30,17 +36,27 @@ public class ProceduralGeneration extends Pelm<ProceduralGenerationModel, Proced
     @Override
     protected void onSetup()
     {
+        model.assetServer = new AssetServer(this);
+
         strokeWeight(0);
 
         super.onSetup();
     }
 
+    Subscription<ProceduralGenerationMessage> keyPress = new ButtonPressedSubscription<>(k -> switch (k.getKeyCode())
+    {
+        case VK_W -> new DirectionPressedMessage(Direction.North);
+        case VK_A -> new DirectionPressedMessage(Direction.West);
+        case VK_D -> new DirectionPressedMessage(Direction.East);
+        case VK_S -> new DirectionPressedMessage(Direction.South);
+        default -> new NoneMessage();
+    });
     Subscription<ProceduralGenerationMessage> onClick = new MouseClickedSubscription<>(ClickMessage::new);
 
     @Override
     protected Stream<? extends Subscription<ProceduralGenerationMessage>> subscriptions(final ProceduralGenerationModel proceduralGenerationModel)
     {
-        return Stream.of(onClick);
+        return Stream.of(onClick, keyPress);
     }
 
     @Override
@@ -51,7 +67,8 @@ public class ProceduralGeneration extends Pelm<ProceduralGenerationModel, Proced
         this.drawContext().beginDraw();
 
         this.model.ecs.update(new DrawButtons(drawContext()));
-        this.model.ecs.update(new DrawChunkMessage(drawContext(), 200 / 16));
+        this.model.ecs.update(new DrawChunkMessage(drawContext(), TileWidth));
+        this.model.ecs.update(new FlushSpawnMessage());
 
         this.drawContext().endDraw();
     }

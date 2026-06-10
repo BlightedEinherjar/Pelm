@@ -1,5 +1,5 @@
 package procedural_generation.message;
 
-public sealed interface ProceduralGenerationMessage permits ClickMessage, DrawButtons
+public sealed interface ProceduralGenerationMessage permits DirectionPressedMessage, NoneMessage, ClickMessage, DrawButtons
 {
 }

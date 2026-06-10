@@ -31,6 +31,7 @@ public sealed interface Result<TError, TSuccess> permits Err, Ok
         };
     }
 
+    @Deprecated(since = "This is not actually deprecated but generally should not be used outside of debugging contexts and a warning was needed")
     default TSuccess unwrap()
     {
         return switch (this)
@@ -40,6 +41,7 @@ public sealed interface Result<TError, TSuccess> permits Err, Ok
         };
     }
 
+    @Deprecated(since = "This is not actually deprecated but generally should not be used outside of debugging contexts and a warning was needed")
     default TError unwrapAsError()
     {
         return switch (this)

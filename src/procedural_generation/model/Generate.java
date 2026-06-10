@@ -1,8 +1,10 @@
 package procedural_generation.model;
 
+import procedural_generation.model.noise.Noise;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
 import procedural_generation.model.standard_tile_set.data.SeaTileData;
-import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
+import procedural_generation.model.standard_tile_set.tile.GrassTile;
+import procedural_generation.model.standard_tile_set.tile.TreeTile;
 import utils.result.Ok;
 import utils.result.Result;
 import utils.row.Row2;
@@ -36,25 +38,115 @@ public enum Generate
         return new GenerationChunk<>(grid);
     }
 
-    public static Chunk<StandardTileEdge> generateStandard()
+    public static Row2<Chunk<StandardTileEdge>, Position> generateStandardWithPlayerStartingLocation(final Noise noise)
     {
-        final var r = new Random(0);
-
-        final var grid = createGenerationGrid(16 * 4, TileSets.standard().tileSet().stream().toList());
-
-//        grid.chunkData().get(0).set(0, new GenerationChunk.GenerationCell.GenerationSetTile<>(TileSets.standard().tileSet().get(7).create()));
-
-//        propagate(grid, new Row2<>(0, 0), TileSets.standard().allowed());
+        final var r = new Random(1);
 
         while (true)
         {
-            final var u = step(grid, r, TileSets.standard().allowed());
+            final var grid = createGenerationGrid(16 * 4, TileSets.standard().tileSet().stream().toList());
 
-            if (u instanceof final Ok<GenerationChunk<StandardTileEdge>, Chunk<StandardTileEdge>> done)
+            while (true)
             {
-                return done.success();
+                final Result<GenerationChunk<StandardTileEdge>, Chunk<StandardTileEdge>> u;
+                try
+                {
+                    u = step(grid, r, TileSets.standard(), noise);
+                } catch (final EmptyPropagationException e)
+                {
+                    break;
+                }
+
+                if (u instanceof final Ok<GenerationChunk<StandardTileEdge>, Chunk<StandardTileEdge>> done)
+                {
+                    final var maybePosition = searchForValidStart(done.success());
+
+                    if (maybePosition.isEmpty())
+                    {
+                        System.out.println("Retrying search!");
+
+                        // Retry if invalid
+                        break;
+                    }
+
+                    return new Row2<>(done.success(), maybePosition.get());
+                }
             }
         }
+    }
+
+    private static Optional<Position> searchForValidStart(final Chunk<StandardTileEdge> chunk)
+    {
+        final int y = 0;
+        for (final var row : chunk.grid())
+        {
+            final int x = 0;
+            for (final var tile : row)
+            {
+                if (tile instanceof GrassTile)
+                {
+                    if (connectedTreeTile(x, y, chunk))
+                        return Optional.of(new Position(x, y));
+                }
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private static <TileEdge> boolean connectedTreeTile(final int x, final int y, final Chunk<TileEdge> chunk)
+    {
+        final int maxX = chunk.grid().getFirst().size() - 1;
+        final int maxY = chunk.grid().size() - 1;
+
+        final var seen = new HashSet<Position>();
+
+        final Position first = new Position(x, y);
+        seen.add(first);
+
+        final var frontier = new Stack<Position>();
+
+        frontier.addAll(searchNeighbours(first, seen, maxX, maxY));
+
+        while (!frontier.isEmpty())
+        {
+            final var search = frontier.pop();
+
+            if (chunk.get(search) instanceof TreeTile)
+                return true;
+
+            seen.add(search);
+
+            frontier.addAll(searchNeighbours(search, seen, maxX, maxY));
+        }
+
+        return false;
+    }
+
+    private static Collection<Position> searchNeighbours(final Position position, final HashSet<Position> seen, final int maxX, final int maxY)
+    {
+        final int x = position.x();
+        final int y = position.y();
+
+        final var r = new ArrayList<Position>(4);
+
+        final var left = new Position(x - 1, y);
+        if (x - 1 >= 0 && !seen.contains(left))
+            r.add(left);
+
+        final var right = new Position(x + 1, y);
+        if (x + 1 <= maxX && !seen.contains(right))
+            r.add(right);
+
+        final var up = new Position(x, y - 1);
+        if (y - 1 >= 0 && !seen.contains(up))
+            r.add(up);
+
+        final var down = new Position(x, y + 1);
+        if (y + 1 <= maxY && !seen.contains(down))
+            r.add(down);
+
+        return r;
     }
 
     public static <TileEdge> boolean compatibleEastWest(final TileData<TileEdge> left, final TileData<TileEdge> right)
@@ -156,10 +248,9 @@ public enum Generate
 //                }));//.collect(Collectors.joining("|"))).collect(Collectors.joining("\n"));
     }
 
-    public static <TileEdge> Result<GenerationChunk<TileEdge>, Chunk<TileEdge>> step(final GenerationChunk<TileEdge> chunk, final Random random, final BiPredicate<TileEdge, TileEdge> edgeMatch)
+    public static <TileEdge> Result<GenerationChunk<TileEdge>, Chunk<TileEdge>> step(final GenerationChunk<TileEdge> chunk, final Random random, final TileSet<TileEdge> tileSet, final Noise noise)
     {
-        System.out.println("\n\n");
-        System.out.println(chunkToString(chunk));
+        final var edgeMatch = tileSet.allowed();
 
         final Optional<Row2<Integer, Integer>> pos = mostConstrainedPosition(chunk);
 
@@ -168,7 +259,7 @@ public enum Generate
 
         final var position = pos.get();
 
-        chunk.collapseAt(position.x(), position.y(), random);
+        chunk.collapseAt(position.x(), position.y(), noise, tileSet, random);
 
         return Result.error(propagate(chunk, position, edgeMatch));
     }
@@ -200,56 +291,12 @@ public enum Generate
 
         final var neighbour = chunk.at(neighbourPosition);
 
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Quarter);
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData1 = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.Half);
-        RotatedTileData<StandardTileEdge> standardTileEdgeRotatedTileData2 = new RotatedTileData<>(new InnerCornerCoastTileData(), TileRotation.ThreeQuarters);
-
-//        System.out.println("Quarter!");
-//        for (Direction value : Direction.values())
-//        {
-//            StandardTileEdge edge = standardTileEdgeRotatedTileData.edge(value);
-//
-//            System.out.printf("%s::%s\n", value, edge);
-//        }
-//        System.out.println("\n\nHalf!");
-//
-//        for (Direction value : Direction.values())
-//        {
-//            StandardTileEdge edge = standardTileEdgeRotatedTileData1.edge(value);
-//
-//            System.out.printf("%s::%s\n", value, edge);
-//        }
-//
-//        System.out.println("\n\nThree!");
-//
-//        for (Direction value : Direction.values())
-//        {
-//            StandardTileEdge edge = standardTileEdgeRotatedTileData2.edge(value);
-//
-//            System.out.printf("%s::%s\n", value, edge);
-//        }
-//
-//        System.exit(3);
-
         return switch (neighbour)
         {
             case final GenerationChunk.GenerationCell.GenerationSetTile<TileEdge> ignored -> edgeMatch.test(ignored.tile().data().edge(direction.opposite()), tile.edge(direction));
             case final GenerationChunk.GenerationCell.GenerationUnsetTile<TileEdge> cell ->
                     cell.data().stream().anyMatch(x ->
-                    {// Breakpoint for if it is C2 checking with C0.
-                        /// C2 C
-                        /// C1 C0
-
-                        if (x instanceof final RotatedTileData<TileEdge> r)
-                        {
-                            if (tile instanceof final RotatedTileData<TileEdge> rr)
-                            {
-                                System.out.println("Hey!");
-                            }
-                        }
-
-                        return edgeMatch.test(x.edge(direction.opposite()), tile.edge(direction));
-                    });
+                            edgeMatch.test(x.edge(direction.opposite()), tile.edge(direction)));
         };
     }
 
@@ -272,14 +319,18 @@ public enum Generate
 
             final var options = generationCell.asUnsetTile().data();
 
-            System.out.println("\n\n");
+            // Uncomment these to see the wave propagation, it is very cool to watch but absolutely kills performance.
+//            System.out.println("\n\n");
 
-            System.out.println(chunkToString(chunk));
+//            System.out.println(chunkToString(chunk));
 
             final boolean altered = options.removeIf(option -> !isValid(option, pos, chunk, edgeMatch));
 
             if (altered)
             {
+                if (options.isEmpty())
+                    throw new EmptyPropagationException("Empty propagation");
+
                 positionStack.addAll(neighbours(pos));
             }
         }

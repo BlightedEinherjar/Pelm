@@ -20,7 +20,8 @@ public enum TileSets
 {
     ;
 
-    public static final float SeaLevel = 0.2f;
+    public static final float SeaLevel = 0.6f;
+    public static final float MinimumHillsLevel = 0.6f;
 
     public static <Edge> BiPredicate<Edge, Edge> commutative(final BiPredicate<Edge, Edge> p)
     {
@@ -32,6 +33,8 @@ public enum TileSets
         return new TileSet<>(List.of(
                 new GrassTileData(),
                 new TreeTileData(),
+                new HillsTileData(),
+                new MountainsTileData(),
                 new InlandCoastTileData(),
                 new InnerCornerCoastTileData(),
                 new SeaTileData(),
@@ -75,6 +78,11 @@ public enum TileSets
             return right == Sea;
         }
 
+        if (left == FootHills)
+        {
+            return right == Land || right == Mountains || right == FootHills;
+        }
+
         return left == right;
     }
 
@@ -87,16 +95,19 @@ public enum TileSets
 
         return switch (tile)
         {
-            case final SeaTileData _   -> h <= SeaLevel ? 1.0f : 0.0f;
+            case final InnerCornerCoastTileData _, final OuterCornerCoastTileData _, final InlandCoastTileData _   -> h <= SeaLevel + 0.2f && h >= SeaLevel - 0.1f ? 0.0001f : 0.0f;
+            case final SeaTileData _ -> h <= SeaLevel ? 1.0f : 0.0f;
             case final GrassTileData _ -> h <= SeaLevel ? 0.0f : grassWeight.apply(h);
-            case final TreeTileData _  -> h <= SeaLevel ? 1.0f : treeWeight.apply(h);
-            case final InnerCornerCoastTileData _, final OuterCornerCoastTileData _, final InlandCoastTileData _ -> 1.0f;
+            case final TreeTileData _  -> h <= SeaLevel ? 0.0f : treeWeight.apply(h);
+            case final HillsTileData _ -> h <= MinimumHillsLevel ? 0.0f : hillsWeight.apply(h);
+            case final MountainsTileData _ -> h <= 0.9f ? 0.0f : 2.0f;
             default -> throw new RuntimeException("Unknown tile in weight function");
         };
     }
 
-    private static final Function<Float, Float> grassWeight = gauss(0.3f, -0.4f);
-    private static final Function<Float, Float> treeWeight  = gauss(0.55f, -0.3f);
+    private static final Function<Float, Float> hillsWeight = gauss(0.7f, 0.2f);
+    private static final Function<Float, Float> grassWeight = gauss(0.3f, 0.4f);
+    private static final Function<Float, Float> treeWeight  = gauss(0.55f, 0.3f);
 
     private static Function<Float, Float> gauss(final float centre, final float steepnessFactor)
     {

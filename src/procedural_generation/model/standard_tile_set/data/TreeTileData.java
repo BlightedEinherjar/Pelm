@@ -30,9 +30,19 @@ public record TreeTileData() implements TileData<StandardTileEdge>
     {
         g.push();
 
-        g.fill(150, 75, 0);
+        g.noStroke();
 
+        g.fill(Color.green.getRGB());
         g.rect(x, y, width, height);
+
+        g.fill(40, 100, 40);
+
+        final float r = width * 0.45f;
+
+        // Top-down trees
+        g.circle(x + width * 0.35f, y + height * 0.35f, r);
+        g.circle(x + width * 0.65f, y + height * 0.35f, r);
+        g.circle(x + width * 0.50f, y + height * 0.65f, r);
 
         g.pop();
     }
