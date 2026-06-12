@@ -1,6 +1,4 @@
-package procedural_generation.model;
-
-import java.util.Optional;
+package procedural_generation.model.generation;
 
 public interface Tile<TileDataEdge>
 {

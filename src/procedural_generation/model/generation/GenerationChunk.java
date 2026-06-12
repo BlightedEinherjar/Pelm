@@ -1,4 +1,4 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
 import procedural_generation.model.noise.Noise;
 import utils.row.Row2;

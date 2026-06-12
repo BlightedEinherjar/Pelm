@@ -1,16 +1,13 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
+import procedural_generation.model.TileRotation;
 import procedural_generation.model.standard_tile_set.*;
-import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTile;
+import procedural_generation.model.standard_tile_set.data.*;
 import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
 import procedural_generation.model.standard_tile_set.data.coast.InlandCoastTileData;
-import procedural_generation.model.standard_tile_set.data.GrassTileData;
-import procedural_generation.model.standard_tile_set.data.SeaTileData;
-import procedural_generation.model.standard_tile_set.data.TreeTileData;
 import procedural_generation.model.standard_tile_set.data.coast.OuterCornerCoastTileData;
 
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 

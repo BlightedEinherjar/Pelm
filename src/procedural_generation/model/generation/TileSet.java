@@ -1,7 +1,6 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
 import java.util.List;
-import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 

@@ -1,5 +1,7 @@
 package procedural_generation.model;
 
+import procedural_generation.model.generation.Direction;
+
 import java.util.Objects;
 
 public final class Position
@@ -58,4 +60,9 @@ public final class Position
                 "y=" + y + ']';
     }
 
+    public void set(final Position target)
+    {
+        this.x = target.x;
+        this.y = target.y;
+    }
 }

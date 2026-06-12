@@ -1,4 +1,6 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
+
+import procedural_generation.model.Position;
 
 import java.util.ArrayList;
 

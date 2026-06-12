@@ -1,10 +1,10 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
+import procedural_generation.model.EmptyPropagationException;
+import procedural_generation.model.Position;
 import procedural_generation.model.noise.Noise;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
-import procedural_generation.model.standard_tile_set.data.SeaTileData;
 import procedural_generation.model.standard_tile_set.tile.GrassTile;
-import procedural_generation.model.standard_tile_set.tile.TreeTile;
 import utils.result.Ok;
 import utils.result.Result;
 import utils.row.Row2;
@@ -13,7 +13,8 @@ import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
-import static procedural_generation.model.Direction.*;
+import static procedural_generation.model.generation.Direction.*;
+import static procedural_generation.model.standard_tile_set.TilePredicates.*;
 
 public enum Generate
 {
@@ -77,24 +78,28 @@ public enum Generate
 
     private static Optional<Position> searchForValidStart(final Chunk<StandardTileEdge> chunk)
     {
-        final int y = 0;
+        int y = 0;
         for (final var row : chunk.grid())
         {
-            final int x = 0;
+            int x = 0;
             for (final var tile : row)
             {
                 if (tile instanceof GrassTile)
                 {
-                    if (connectedTreeTile(x, y, chunk))
+                    if (connectedTreeAndSeaTiles(x, y, chunk))
                         return Optional.of(new Position(x, y));
                 }
+
+                x++;
             }
+
+            y++;
         }
 
         return Optional.empty();
     }
 
-    private static <TileEdge> boolean connectedTreeTile(final int x, final int y, final Chunk<TileEdge> chunk)
+    private static boolean connectedTreeAndSeaTiles(final int x, final int y, final Chunk<StandardTileEdge> chunk)
     {
         final int maxX = chunk.grid().getFirst().size() - 1;
         final int maxY = chunk.grid().size() - 1;
@@ -102,28 +107,51 @@ public enum Generate
         final var seen = new HashSet<Position>();
 
         final Position first = new Position(x, y);
+
+        if (!isLandAccessible(chunk.get(first)))
+        {
+            return false;
+        }
+
         seen.add(first);
 
         final var frontier = new Stack<Position>();
 
-        frontier.addAll(searchNeighbours(first, seen, maxX, maxY));
+        frontier.addAll(searchNeighbours(first, seen, maxX, maxY, chunk));
+
+        boolean foundTree = false;
+        boolean foundSea = false;
 
         while (!frontier.isEmpty())
         {
             final var search = frontier.pop();
 
-            if (chunk.get(search) instanceof TreeTile)
-                return true;
+            if (isTree(chunk.get(search)))
+            {
+                if (foundSea)
+                    return true;
+
+                foundSea = true;
+            }
+
+            if (isSea(chunk.get(search)))
+            {
+                if (foundTree)
+                    return true;
+
+                foundTree = true;
+            }
+
 
             seen.add(search);
 
-            frontier.addAll(searchNeighbours(search, seen, maxX, maxY));
+            frontier.addAll(searchNeighbours(search, seen, maxX, maxY, chunk));
         }
 
         return false;
     }
 
-    private static Collection<Position> searchNeighbours(final Position position, final HashSet<Position> seen, final int maxX, final int maxY)
+    private static Collection<Position> searchNeighbours(final Position position, final HashSet<Position> seen, final int maxX, final int maxY, final Chunk<StandardTileEdge> chunk)
     {
         final int x = position.x();
         final int y = position.y();
@@ -131,19 +159,19 @@ public enum Generate
         final var r = new ArrayList<Position>(4);
 
         final var left = new Position(x - 1, y);
-        if (x - 1 >= 0 && !seen.contains(left))
+        if (x - 1 >= 0 && !seen.contains(left) && isLandAccessible(chunk.get(left)))
             r.add(left);
 
         final var right = new Position(x + 1, y);
-        if (x + 1 <= maxX && !seen.contains(right))
+        if (x + 1 <= maxX && !seen.contains(right) && isLandAccessible(chunk.get(right)))
             r.add(right);
 
         final var up = new Position(x, y - 1);
-        if (y - 1 >= 0 && !seen.contains(up))
+        if (y - 1 >= 0 && !seen.contains(up) && isLandAccessible(chunk.get(up)))
             r.add(up);
 
         final var down = new Position(x, y + 1);
-        if (y + 1 <= maxY && !seen.contains(down))
+        if (y + 1 <= maxY && !seen.contains(down) && isLandAccessible(chunk.get(down)))
             r.add(down);
 
         return r;
@@ -266,16 +294,6 @@ public enum Generate
 
     private static <TileEdge> boolean isValid(final TileData<TileEdge> tile, final Row2<Integer, Integer> position, final GenerationChunk<TileEdge> grid, final BiPredicate<TileEdge, TileEdge> edgeMatch)
     {
-        if (tile instanceof SeaTileData)
-        {
-            System.out.println();
-        }
-
-        if (position.equals(new Row2<>(3, 0)))
-        {
-            System.out.println();
-        }
-
         return      check(tile, new Row2<>(position.x() + 1, position.y()), East,  grid, edgeMatch)
                 &&  check(tile, new Row2<>(position.x(), position.y() + 1), South, grid, edgeMatch)
                 &&  check(tile, new Row2<>(position.x() - 1, position.y()), West,  grid, edgeMatch)

@@ -1,4 +1,4 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
 import java.util.Objects;
 

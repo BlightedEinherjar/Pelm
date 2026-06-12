@@ -1,5 +1,6 @@
-package procedural_generation.model;
+package procedural_generation.model.generation;
 
+import procedural_generation.model.TileRotation;
 import processing.core.PGraphics;
 
 public record RotatedTileData<TileEdge>(TileData<TileEdge> base, TileRotation rotation) implements TileData<TileEdge>

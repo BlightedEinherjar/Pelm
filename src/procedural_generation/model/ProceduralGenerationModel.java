@@ -6,38 +6,35 @@ import entity_component_system.entity.Entity;
 import entity_component_system.query.Commands;
 import entity_component_system.query.Queries;
 import examples.ecs.movement.entities.EntityBuilder;
+import org.jetbrains.annotations.NotNull;
 import procedural_generation.FlushSpawnMessage;
 import procedural_generation.message.ClickMessage;
 import procedural_generation.message.DirectionPressedMessage;
 import procedural_generation.message.DrawButtons;
+import procedural_generation.model.generation.Chunk;
+import procedural_generation.model.generation.Generate;
 import procedural_generation.model.noise.Noise;
+import procedural_generation.model.noise.Skewer;
 import procedural_generation.model.noise.ValueNoise;
 import procedural_generation.model.noise.WeightedSum;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
-import procedural_generation.model.standard_tile_set.data.coast.InlandCoastTileData;
-import procedural_generation.model.standard_tile_set.data.coast.InnerCornerCoastTileData;
-import procedural_generation.model.standard_tile_set.data.coast.OuterCornerCoastTileData;
-import procedural_generation.model.standard_tile_set.tile.SeaTile;
-import procedural_generation.model.standard_tile_set.tile.TreeTile;
 import procedural_generation.model.ui.Button;
 import utils.row.Row2;
 
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 import static procedural_generation.ProceduralGeneration.TileWidth;
-import static procedural_generation.model.Direction.East;
+import static procedural_generation.model.standard_tile_set.TilePredicates.*;
 
 public class ProceduralGenerationModel
 {
-    public static final Queries.Query2Specification<Position, PlayerStateHolder> PlayerQuery = Queries.query(Position.class, PlayerStateHolder.class);
+    public static final Queries.Query2Specification<Position, PlayerStateComponent> PlayerQuery = Queries.query(Position.class, PlayerStateComponent.class);
     public static final Queries.Query1Specification<Chunk> ChunkQuery = Queries.query(Chunk.class);
     public AssetServer assetServer;
-    public static final Noise NoiseFunction = new WeightedSum(List.of(
+    public static final Noise UnskewedNoiseFunction = new WeightedSum(List.of(
             new Row2<>(5f, new ValueNoise(0.05f)),
             new Row2<>(1f, new ValueNoise(0.01f))
-//            new Row2<>(0.5f, new ValueNoise(0.05f)),
-//            new Row2<>(0.25f, new ValueNoise(0.1f)),
-//            new Row2<>(0.1f, new ValueNoise(0.25f))
     ));
 
     //    public TerrainGenerator<StandardTileEdge> terrainGenerator = new TerrainGenerator<>(new GenerationRules<>(TileSets.standard()), new Random());
@@ -52,21 +49,33 @@ public class ProceduralGenerationModel
                 .registerSystem(DrawChunkMessage.class, this::drawPlayerSystem)
                 .registerSystem(FlushSpawnMessage.class, ProceduralGenerationModel::flushSpawnSystem);
 
-        this.ecs.spawn(builder ->
-                builder.with(new Button(50, 50, 50, 50, "Start!", (commands, _, buttonEntity) ->
-                {
-                    commands.kill(buttonEntity);
+        this.ecs
+                .spawn(builder ->
+                    builder.with(makeButton(1)))
+                .spawn(b -> b.with(makeButton(2)))
+                .spawn(b -> b.with(makeButton(3)))
+                .spawn(b -> b.with(makeButton(4)));
+    }
 
-                    final var chunkAndPosition = Generate.generateStandardWithPlayerStartingLocation(NoiseFunction);
+    @NotNull
+    private static Button makeButton(final int level)
+    {
+        return new Button(50, 50 + level * 100, 200, 50, "Amplitude (Difficulty): " + level, (commands, _, buttonEntity) ->
+        {
+            System.out.println("Button clicked!");
 
-                    final var chunk = chunkAndPosition.a();
+            commands.query(Queries.query(Entity.class).with(Button.class)).forEach(commands::kill);
 
-                    final var playerPosition = chunkAndPosition.b();
+            final var chunkAndPosition = Generate.generateStandardWithPlayerStartingLocation(new Skewer(UnskewedNoiseFunction, level));
 
-                    commands.markForLife(EntityBuilder.create().with(chunk).build());
+            final var chunk = chunkAndPosition.a();
 
-                    commands.markForLife(EntityBuilder.create().with(playerPosition).with(PlayerState.Land).build());
-                })));
+            final var playerPosition = chunkAndPosition.b();
+
+            commands.markForLife(EntityBuilder.create().with(chunk).build());
+
+            commands.markForLife(EntityBuilder.create().with(playerPosition).with(new PlayerStateComponent(PlayerState.Land)).build());
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -84,26 +93,23 @@ public class ProceduralGenerationModel
                 final int maxX = chunk.grid().getFirst().size() - 1;
                 final int maxY = chunk.grid().size() - 1;
 
+                final var target = position.move(directionPressedMessage.direction());
 
+                if (target.x() > maxX || target.x() < 0 || target.y() > maxY || target.y() < 0)
+                    return;
 
-                switch (directionPressedMessage.direction())
+                final EnterResult enterResult = canEnter(chunk, target, stateHolder.state);
+
+                switch (enterResult)
                 {
-                    case East:
-                        if (position.x() == maxX)
-                            return;
-                        final EnterResult enterResult = canEnter(chunk, position.move(East), stateHolder.state);
-                        switch (enterResult)
-                        {
-                            case final EnterResult.CannotEnter _:
-                                return;
-                            case final EnterResult.EnterWithTransition t:
-                                position.x++;
-                                stateHolder.state = stateHolder.state.transition(t.transition());
-                                break;
-                            case final EnterResult.EnterWithoutTransition _:
-                                position.x++;
-                                break;
-                        }
+                    case final EnterResult.CannotEnter _:
+                        return;
+                    case final EnterResult.EnterWithTransition t:
+                        position.set(target);
+                        stateHolder.state = stateHolder.state.transition(t.transition());
+                        break;
+                    case final EnterResult.EnterWithoutTransition _:
+                        position.set(target);
                         break;
                 }
             });
@@ -123,46 +129,16 @@ public class ProceduralGenerationModel
         };
     }
 
-    private boolean isLandAccessible(final Tile<StandardTileEdge> tile)
-    {
-        return !isSea(tile);
-    }
-
-    private boolean isTree(final Tile<StandardTileEdge> tile)
-    {
-        return tile instanceof TreeTile;
-    }
-
-    private boolean isSea(final Tile<StandardTileEdge> tile)
-    {
-        return tile instanceof SeaTile;
-    }
-
-    private boolean isCoast(final Tile<StandardTileEdge> tile)
-    {
-        final TileData<StandardTileEdge> checkTile = switch (tile)
-        {
-            case final RotatedTile<StandardTileEdge> r -> r.base();
-            default -> tile.data();
-        };
-
-        return switch (checkTile)
-        {
-            case final InlandCoastTileData _, final InnerCornerCoastTileData _, final OuterCornerCoastTileData _ -> true;
-            default -> false;
-        };
-    }
-
     private void drawPlayerSystem(final DrawChunkMessage drawChunkMessage, final Commands commands)
     {
         commands.query(PlayerQuery).forEach(row ->
         {
-            final var state = row.b();
+            final var state = row.b().state;
             final var playerPosition = row.a();
 
             final var image = switch (state)
             {
-                case Land -> assetServer.loadImage("/ProceduralGeneration/dude.png");
+                case Land, CanShip -> assetServer.loadImage("/ProceduralGeneration/dude.png");
                 case Ship -> assetServer.loadImage("/ProceduralGeneration/ship.png");
             };
 
@@ -195,7 +171,7 @@ public class ProceduralGenerationModel
         final int width = drawChunkMessage.tileDimension();
         final int height = drawChunkMessage.tileDimension();
 
-        final Noise valueNoise = NoiseFunction;
+        final Noise valueNoise = new Skewer(UnskewedNoiseFunction, 4);
 
         for (final Chunk<StandardTileEdge> chunk : commands.query(ChunkQuery))
         {
@@ -232,6 +208,8 @@ public class ProceduralGenerationModel
 
     private void runButtons(final ClickMessage clickMessage, final Commands commands)
     {
-        commands.query(Queries.query(Button.class, Entity.class)).forEach(x -> x.a().conditionalTrigger(ecs, clickMessage.e().getX(), clickMessage.e().getY(), x.b()));
+        final var buttons = StreamSupport.stream(commands.query(Queries.query(Button.class, Entity.class)).spliterator(), false).toList();
+
+        buttons.forEach(x -> x.a().conditionalTrigger(ecs, clickMessage.e().getX(), clickMessage.e().getY(), x.b()));
     }
 }

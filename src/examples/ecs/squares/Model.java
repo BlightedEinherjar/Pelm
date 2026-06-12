@@ -17,7 +17,7 @@ public record Model(EntityComponentSystem ecs)
                 .registerSystem(Message.Interval.class, Model::collideParticles)
                 .registerSystem(Message.Draw.class, Model::drawParticles, Queries.query(Position.class, Shape.class))
                 .registerSystem(Message.Spawn.class, Model::spawn)
-                .registerSystem(Message.FlushSpawn.class, Model::flushSpawn);
+                .registerSystem(Message.FlushSpawnDespawn.class, Model::flushSpawn);
 
         return new Model(entityComponentSystem);
     }
@@ -90,9 +90,10 @@ public record Model(EntityComponentSystem ecs)
         commands.markForLife(msg.position(), msg.velocity(), msg.shape());
     }
 
-    private static void flushSpawn(final Message.FlushSpawn msg, final Commands commands)
+    private static void flushSpawn(final Message.FlushSpawnDespawn msg, final Commands commands)
     {
         commands.flushSpawn();
+        commands.flushDespawn();
     }
 
     public static class Position

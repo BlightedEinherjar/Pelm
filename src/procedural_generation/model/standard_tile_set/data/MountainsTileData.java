@@ -1,6 +1,10 @@
-package procedural_generation.model;
+package procedural_generation.model.standard_tile_set.data;
 
+import procedural_generation.model.generation.Direction;
+import procedural_generation.model.generation.Tile;
+import procedural_generation.model.generation.TileData;
 import procedural_generation.model.standard_tile_set.StandardTileEdge;
+import procedural_generation.model.standard_tile_set.tile.MountainsTile;
 import processing.core.PGraphics;
 
 public class MountainsTileData implements TileData<StandardTileEdge>

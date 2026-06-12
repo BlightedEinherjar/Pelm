@@ -6,7 +6,7 @@ import pelm.core.Subscription;
 import pelm.subscription.ButtonPressedSubscription;
 import pelm.subscription.MouseClickedSubscription;
 import procedural_generation.message.*;
-import procedural_generation.model.Direction;
+import procedural_generation.model.generation.Direction;
 import procedural_generation.model.DrawChunkMessage;
 import procedural_generation.model.ProceduralGenerationModel;
 import processing.core.PGraphics;

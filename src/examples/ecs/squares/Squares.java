@@ -41,7 +41,7 @@ public class Squares extends Pelm<Model, Message>
             model.ecs().update(new Message.Spawn(pos, vel, shape));
         }
 
-        model.ecs().update(new Message.FlushSpawn());
+        model.ecs().update(new Message.FlushSpawnDespawn());
     }
 
     private final TimerSubscription<Message> timerSub = new TimerSubscription<>(millis(), 1000 / 60, () -> new Message.Interval(width, height));
